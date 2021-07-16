@@ -1,4 +1,3 @@
-/// <reference path="struct.js"/>
 /// <reference path="queue.js"/>
 class RenderBase extends Queue {
     /** @private */
@@ -169,7 +168,7 @@ class RenderBase extends Queue {
 
     /**
      * @param {any} sender
-     * @param {Posture} posture
+     * @param {Array<number>} posture
      */
     modelPosture(sender, posture) {
         this._enqueue(RenderBase._MODEL_POSTURE, sender, posture);
@@ -177,7 +176,7 @@ class RenderBase extends Queue {
     /**
      * @protected @virtual
      * @param {any} sender
-     * @param {Posture} posture
+     * @param {Array<number>} posture
      */
     _modelPosture(sender, posture) {}
 

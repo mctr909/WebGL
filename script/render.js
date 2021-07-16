@@ -1,73 +1,6 @@
 /// <reference path="math.js"/>
 /// <reference path="render_base.js"/>
 /// <reference path="model.js"/>
-class ModelAttr {
-	constructor() {
-		/**
-		 * 名称
-		 * @type {string}
-		 */
-		this.name = "";
-		/**
-		 * 頂点
-		 * @type {WebGLBuffer}
-		 */
-		this.ver = null;
-		/**
-		 * 法線
-		 * @type {WebGLBuffer}
-		 */
-		this.nor = null;
-		/**
-		 * 頂点色
-		 * @type {WebGLBuffer}
-		 */
-		this.col = null;
-		/**
-		 * インデックス
-		 * @type {WebGLBuffer}
-		 */
-		this.idx = null;
-		/**
-		 * インデックス数
-		 * @type {number}
-		 */
-		this.idxCount = 0;
-	}
-}
-
-class ShaderAttr {
-	/**
-	 * @param {WebGLRenderingContext} gl
-	 * @param {WebGLProgram} program
-	 * @param {number} type
-	 * @param {number} size
-	 * @param {string} name
-	 */
-	constructor(gl, program, type, size, name) {
-		this._gl = gl;
-		this._location = gl.getAttribLocation(program, name);
-		this._type = type;
-		this._size = size;
-		this._name = name;
-	}
-
-	get Name() { return this._name; }
-
-	/**
-	 * バッファをバインドする
-	 * @param {WebGLBuffer} vbo
-	 */
-	bindBuffer(vbo) {
-		// バッファをバインドする
-		this._gl.bindBuffer(this._gl.ARRAY_BUFFER, vbo);
-		// attributeLocationを有効にする
-		this._gl.enableVertexAttribArray(this._location);
-		// attributeLocationを通知し登録する
-		this._gl.vertexAttribPointer(this._location, this._size, this._type, false, 0, 0);
-	}
-}
-
 class ShaderVar {
 	/**
 	 * @param {WebGLRenderingContext} gl
@@ -128,6 +61,73 @@ class UniformLoc {
 		 * @type {WebGLUniformLocation}
 		 */
 		this.eyeDirection = gl.getUniformLocation(prg, "eyeDirection");
+	}
+}
+
+class ShaderAttr {
+	/**
+	 * @param {WebGLRenderingContext} gl
+	 * @param {WebGLProgram} program
+	 * @param {number} type
+	 * @param {number} size
+	 * @param {string} name
+	 */
+	constructor(gl, program, type, size, name) {
+		this._gl = gl;
+		this._location = gl.getAttribLocation(program, name);
+		this._type = type;
+		this._size = size;
+		this._name = name;
+	}
+
+	get Name() { return this._name; }
+
+	/**
+	 * バッファをバインドする
+	 * @param {WebGLBuffer} vbo
+	 */
+	bindBuffer(vbo) {
+		// バッファをバインドする
+		this._gl.bindBuffer(this._gl.ARRAY_BUFFER, vbo);
+		// attributeLocationを有効にする
+		this._gl.enableVertexAttribArray(this._location);
+		// attributeLocationを通知し登録する
+		this._gl.vertexAttribPointer(this._location, this._size, this._type, false, 0, 0);
+	}
+}
+
+class ModelAttr {
+	constructor() {
+		/**
+		 * 名称
+		 * @type {string}
+		 */
+		this.name = "";
+		/**
+		 * 頂点
+		 * @type {WebGLBuffer}
+		 */
+		this.ver = null;
+		/**
+		 * 法線
+		 * @type {WebGLBuffer}
+		 */
+		this.nor = null;
+		/**
+		 * 頂点色
+		 * @type {WebGLBuffer}
+		 */
+		this.col = null;
+		/**
+		 * インデックス
+		 * @type {WebGLBuffer}
+		 */
+		this.idx = null;
+		/**
+		 * インデックス数
+		 * @type {number}
+		 */
+		this.idxCount = 0;
 	}
 }
 
@@ -286,15 +286,12 @@ class Render extends RenderBase {
 	_createProgram(...shaders) {
 		// プログラムオブジェクトの生成
 		let program = this.mGL.createProgram();
-
 		// プログラムオブジェクトにシェーダを割り当てる
 		for (let i in shaders) {
 			this.mGL.attachShader(program, shaders[i]);
 		}
-
 		// シェーダをリンク
 		this.mGL.linkProgram(program);
-
 		// シェーダのリンクが正しく行なわれたかチェック
 		if (this.mGL.getProgramParameter(program, this.mGL.LINK_STATUS)) {
 			// 成功していたらプログラムオブジェクトを有効にする
