@@ -21,13 +21,3 @@ class Relation {
         this.Elevation = elevation;
     }
 }
-
-class ObjInfo {
-}
-
-class BoneInfo {
-}
-
-class ModelInfo {
-}
-

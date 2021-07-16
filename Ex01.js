@@ -19,8 +19,7 @@ onload = function() {
 	gAxis = document.getElementById('axis');
 	gRange = document.getElementById('range');
 	gRender = new Render(document.getElementById("canvas"), 800, 600);
-	gRender.modelLoad(this, "A", "");
-	gRender.modelLoad(this, "B", "");
+	gRender.modelLoad(this);
 	let objA = new Vec(0.0, 0.0, -20.0);
 	(function loop() {
 		gCount = ++gCount % (6 * 360);
@@ -36,7 +35,7 @@ onload = function() {
 		Qtn.rotate(3 * rad, objR, qtnA);
 		Qtn.rotate(2 * rad, objR, qtnB);
 
-		gRender.modelBind(this, "B", "");
+		gRender.modelBind(this, "sphere", "");
 
 		//
 		let matModel = new Mat();
@@ -49,7 +48,7 @@ onload = function() {
 		Mat.translate(matModel, objA, matModel);
 		gRender.modelPosition(this, matModel.Copy);
 
-		for (let i = 0.0; i <= 1.0; i += 0.01) {
+		for (let i = 0.0; i <= 1.0; i += 0.05) {
 			let qtnS = new Qtn();
 			Qtn.slerp(qtnA, qtnB, i, qtnS);
 			qtnS.toMat(matModel);
@@ -58,7 +57,7 @@ onload = function() {
 		}
 
 		//
-		gRender.modelBind(this, "A", "");
+		gRender.modelBind(this, "torus", "");
 		let qtnS = new Qtn();
 		Qtn.slerp(qtnA, qtnB, time, qtnS);
 		qtnS.toMat(matModel);

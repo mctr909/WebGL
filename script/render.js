@@ -1,5 +1,166 @@
 /// <reference path="math.js"/>
 /// <reference path="render_base.js"/>
+/// <reference path="model.js"/>
+class ModelAttr {
+	constructor() {
+		/**
+		 * 名称
+		 * @type {string}
+		 */
+		this.name = "";
+		/**
+		 * 頂点
+		 * @type {WebGLBuffer}
+		 */
+		this.ver = null;
+		/**
+		 * 法線
+		 * @type {WebGLBuffer}
+		 */
+		this.nor = null;
+		/**
+		 * 頂点色
+		 * @type {WebGLBuffer}
+		 */
+		this.col = null;
+		/**
+		 * インデックス
+		 * @type {WebGLBuffer}
+		 */
+		this.idx = null;
+		/**
+		 * インデックス数
+		 * @type {number}
+		 */
+		this.idxCount = 0;
+	}
+}
+
+class ShaderAttr {
+	/**
+	 * @param {WebGLRenderingContext} gl
+	 * @param {WebGLProgram} program
+	 * @param {number} type
+	 * @param {number} size
+	 * @param {string} name
+	 */
+	constructor(gl, program, type, size, name) {
+		this._gl = gl;
+		this._location = gl.getAttribLocation(program, name);
+		this._type = type;
+		this._size = size;
+		this._name = name;
+	}
+
+	get Name() { return this._name; }
+
+	/**
+	 * バッファをバインドする
+	 * @param {WebGLBuffer} vbo
+	 */
+	bindBuffer(vbo) {
+		// バッファをバインドする
+		this._gl.bindBuffer(this._gl.ARRAY_BUFFER, vbo);
+		// attributeLocationを有効にする
+		this._gl.enableVertexAttribArray(this._location);
+		// attributeLocationを通知し登録する
+		this._gl.vertexAttribPointer(this._location, this._size, this._type, false, 0, 0);
+	}
+}
+
+class ShaderVar {
+	/**
+	 * @param {WebGLRenderingContext} gl
+	 * @param {WebGLProgram} prg
+	 */
+	constructor(gl, prg) {
+		/**
+		 * 頂点
+		 * @type {ShaderAttr}
+		 */
+		this.ver = new ShaderAttr(gl, prg, gl.FLOAT, 3, "vertex");
+		/**
+		 * 法線
+		 * @type {ShaderAttr}
+		 */
+		this.nor = new ShaderAttr(gl, prg, gl.FLOAT, 3, "normal");
+		/**
+		 * 頂点色
+		 * @type {ShaderAttr}
+		 */
+		this.col = new ShaderAttr(gl, prg, gl.FLOAT, 4, "color");
+	}
+}
+
+class UniformLoc {
+	/**
+	 * @param {WebGLRenderingContext} gl
+	 * @param {WebGLProgram} prg
+	 */
+	constructor(gl, prg) {
+		/**
+		 * MVP行列
+		 * @type {WebGLUniformLocation}
+		 */
+		this.matMVP = gl.getUniformLocation(prg, "mvpMatrix");
+		/**
+		 * モデル行列
+		 * @type {WebGLUniformLocation}
+		 */
+		this.matModel = gl.getUniformLocation(prg, "mMatrix");
+		/**
+		 * モデル逆行列
+		 * @type {WebGLUniformLocation}
+		 */
+		this.matInvModel = gl.getUniformLocation(prg, "invMatrix");
+		/**
+		 * 光源方向
+		 * @type {WebGLUniformLocation}
+		 */
+		this.lightDirection = gl.getUniformLocation(prg, "lightDirection");
+		/**
+		 * 光源色
+		 * @type {WebGLUniformLocation}
+		 */
+		 this.ambientColor = gl.getUniformLocation(prg, "ambientColor");
+		/**
+		 * 視線方向
+		 * @type {WebGLUniformLocation}
+		 */
+		this.eyeDirection = gl.getUniformLocation(prg, "eyeDirection");
+	}
+}
+
+class LightAttr {
+	constructor() {
+		/**
+		 * 方向
+		 * @type {Array<number>}
+		 */
+		this.direction = [1.0, 1.0, 1.0];
+		/**
+		 * 色
+		 * @type {Array<number>}
+		 */
+		this.ambientColor = [0.1, 0.1, 0.1, 1.0];
+	}
+}
+
+class CamAttr {
+	constructor() {
+		/**
+		 * 位置
+		 * @type {Array<number>}
+		 */
+		this.position = [0.0, 0.0, 0.0];
+		/**
+		 * 姿勢
+		 * @type {Array<number>}
+		 */
+		this.upDirection = [0.0, 1.0, 0.0];
+	}
+}
+
 class Render extends RenderBase {
 	/**
 	 * @param {HTMLCanvasElement} canvas
@@ -8,92 +169,199 @@ class Render extends RenderBase {
 	 */
 	constructor(canvas, width, height) {
 		super(canvas, width, height);
-		/** 登録モデル */
+		/**
+		 * WebGLコンテキスト
+		 * @type {WebGLRenderingContext}
+		 */
+		this.mGL = this.mCanvas.getContext("webgl") || this.mCanvas.getContext("experimental-webgl");
+		/**
+		 * 登録モデルリスト
+		 * @type {Array<ModelAttr>}
+		 */
 		this.mModels = new Array();
-		/** バインド中モデル */
+		/**
+		 * バインド中モデル
+		 * @type {ModelAttr}
+		 */
 		this.mBindingModel = null;
-		/** ビュー */
+		/**
+		 * ビュー行列
+		 * @type {Mat}
+		 */
 		this.mMatView = new Mat();
-		/** プロジェクション */
+		/**
+		 * プロジェクション行列
+		 * @type {Mat}
+		 */
 		this.mMatProj = new Mat();
-		/** ビュー×プロジェクション */
+		/**
+		 * ビュー×プロジェクション行列
+		 * @type {Mat}
+		 */
 		this.mMatViewProj = new Mat();
-		/** カメラ */
-		this.mCam = null;
-		/** 光源 */
-		this.mLight = null;
-		this._initialize();
-	}
+		/**
+		 * カメラ
+		 * @type {CamAttr}
+		 */
+		this.mCam = new CamAttr();
+		/**
+		 * 光源
+		 * @type {LightAttr}
+		 */
+		this.mLight = new LightAttr();
 
-	/**
-	 * 初期化
-	 * @private
-	 */
-	_initialize() {
 		this.mGL.enable(this.mGL.DEPTH_TEST);	// 深度テスト有効化
 		this.mGL.depthFunc(this.mGL.LEQUAL);	// 深度テスト(手前側を表示)
 		this.mGL.enable(this.mGL.CULL_FACE);	// カリング有効化
 
 		// 頂点シェーダとフラグメントシェーダの生成
 		// プログラムオブジェクトの生成とリンク
-		let v_shader = this._createShader('vs');
-		let f_shader = this._createShader('fs');
+		let v_shader = this._createShader("vs");
+		let f_shader = this._createShader("fs");
 		let prg = this._createProgram(v_shader, f_shader);
+		/**
+		 * シェーダー変数
+		 * @type {ShaderVar}
+		 */
+		this.mShaderVar = new ShaderVar(this.mGL, prg);
+		/**
+		 * uniform変数
+		 * @type {UniformLoc}
+		 */
+		this.mUniLoc = new UniformLoc(this.mGL, prg);
+	}
 
-		// attributeを取得
-		this.mAttr = {
-			pos: new ShaderAttribute(this.mGL, prg, this.mGL.FLOAT, 3, "position"),
-			nor: new ShaderAttribute(this.mGL, prg, this.mGL.FLOAT, 3, "normal"),
-			col: new ShaderAttribute(this.mGL, prg, this.mGL.FLOAT, 4, "color")
-		};
+	/**
+	 * シェーダを生成
+	 * @param {string} shaderElementId
+	 * @returns {WebGLShader}
+	 */
+	_createShader(shaderElementId) {
+		// HTMLからscriptタグへの参照を取得
+		/** @type {HTMLScriptElement} */
+		let scriptElement = document.getElementById(shaderElementId);
+		if (!scriptElement) {
+			// scriptタグが存在しない場合は抜ける
+			return null;
+		}
 
-		// uniformLocationの取得
-		this.mUniLoc = {
-			matMVP: this.mGL.getUniformLocation(prg, 'mvpMatrix'),
-			matModel: this.mGL.getUniformLocation(prg, 'mMatrix'),
-			matInvModel: this.mGL.getUniformLocation(prg, 'invMatrix'),
-			lightDirection: this.mGL.getUniformLocation(prg, 'lightDirection'),
-			eyeDirection: this.mGL.getUniformLocation(prg, 'eyeDirection'),
-			ambientColor: this.mGL.getUniformLocation(prg, 'ambientColor')
-		};
+		// scriptタグのtype属性をチェックして格納
+		/** @type {WebGLShader} */
+		let shader;
+		switch (scriptElement.type) {
+		case 'x-shader/x-vertex':
+			// 頂点シェーダの場合
+			shader = this.mGL.createShader(this.mGL.VERTEX_SHADER);
+			break;
+		case 'x-shader/x-fragment':
+			// フラグメントシェーダの場合
+			shader = this.mGL.createShader(this.mGL.FRAGMENT_SHADER);
+			break;
+		default:
+			return;
+		}
+
+		// 生成されたシェーダにソースを割り当てる
+		this.mGL.shaderSource(shader, scriptElement.text);
+
+		// シェーダをコンパイルする
+		this.mGL.compileShader(shader);
+
+		// シェーダが正しくコンパイルされたかチェック
+		if (this.mGL.getShaderParameter(shader, this.mGL.COMPILE_STATUS)) {
+			// 成功していたらシェーダを返して終了
+			return shader;
+		} else {
+			// 失敗していたらエラーログをアラートする
+			alert(this.mGL.getShaderInfoLog(shader));
+			return null;
+		}
+	}
+
+	/**
+	 * プログラムオブジェクトを生成しシェーダをリンク
+	 * @param  {...WebGLShader} shaders
+	 * @returns {WebGLProgram}
+	 */
+	_createProgram(...shaders) {
+		// プログラムオブジェクトの生成
+		let program = this.mGL.createProgram();
+
+		// プログラムオブジェクトにシェーダを割り当てる
+		for (let i in shaders) {
+			this.mGL.attachShader(program, shaders[i]);
+		}
+
+		// シェーダをリンク
+		this.mGL.linkProgram(program);
+
+		// シェーダのリンクが正しく行なわれたかチェック
+		if (this.mGL.getProgramParameter(program, this.mGL.LINK_STATUS)) {
+			// 成功していたらプログラムオブジェクトを有効にする
+			this.mGL.useProgram(program);
+			// プログラムオブジェクトを返して終了
+			return program;
+		} else {
+			// 失敗していたらエラーログをアラートする
+			alert(this.mGL.getProgramInfoLog(program));
+			return null;
+		}
+	}
+
+	/**
+	 * VBOを生成
+	 * @param {number[]} data
+	 */
+	_createVbo(data) {
+		// バッファオブジェクトの生成
+		let vbo = this.mGL.createBuffer();
+		// バッファをバインドする
+		this.mGL.bindBuffer(this.mGL.ARRAY_BUFFER, vbo);
+		// バッファにデータをセット
+		this.mGL.bufferData(this.mGL.ARRAY_BUFFER, new Float32Array(data), this.mGL.STATIC_DRAW);
+		// バッファのバインドを無効化
+		this.mGL.bindBuffer(this.mGL.ARRAY_BUFFER, null);
+		// 生成した VBO を返して終了
+		return vbo;
+	}
+
+	/**
+	 * IBOを生成
+	 * @param {number[]} data
+	 */
+	_createIbo(data) {
+		// バッファオブジェクトの生成
+		let ibo = this.mGL.createBuffer();
+		// バッファをバインドする
+		this.mGL.bindBuffer(this.mGL.ELEMENT_ARRAY_BUFFER, ibo);
+		// バッファにデータをセット
+		this.mGL.bufferData(this.mGL.ELEMENT_ARRAY_BUFFER, new Int16Array(data), this.mGL.STATIC_DRAW);
+		// バッファのバインドを無効化
+		this.mGL.bindBuffer(this.mGL.ELEMENT_ARRAY_BUFFER, null);
+		// 生成したIBOを返して終了
+		return ibo;
 	}
 
 	/**
 	 * モデルデータ読み込み
 	 * @protected @override
 	 * @param {any} sender
-	 * @param {string} id
-	 * @param {string} instanceId
 	 */
-	_modelLoad(sender, id, instanceId) {
-		let torusData = torus(256, 256, 1.0, 2.0);
-		let sphereData = sphere(256, 256, 1.0);
-		if (null != this.mModels[id]) {
-			return;
-		}
-		switch (id) {
-		case "A":
-			this.mModels[id] = {
-				name: "torus",
-				position: this._createVbo(torusData[0]),
-				normal: this._createVbo(torusData[1]),
-				color: this._createVbo(torusData[2]),
-				index: this._createIbo(torusData[3]),
-				indexCount: torusData[3].length
-			};
-			break;
-		case "B":
-			this.mModels[id] = {
-				name: "sphere",
-				position: this._createVbo(sphereData[0]),
-				normal: this._createVbo(sphereData[1]),
-				color: this._createVbo(sphereData[2]),
-				index: this._createIbo(sphereData[4]),
-				indexCount: sphereData[4].length
-			};
-			break;
-		default:
-			break;
+	_modelLoad(sender) {
+		let models = create_models();
+		for (let i=0; i<models.length; i++) {
+			let modelData = models[i];
+			let id = modelData[0];
+			if (null != this.mModels[id]) {
+				return;
+			}
+			let modelAttr = new ModelAttr();
+			modelAttr.ver = this._createVbo(modelData[1]);
+			modelAttr.nor = this._createVbo(modelData[2]);
+			modelAttr.col = this._createVbo(modelData[3]);
+			modelAttr.idx = this._createIbo(modelData[4]);
+			modelAttr.idxCount = modelData[4].length;
+			this.mModels[id] = modelAttr;
 		}
 	}
 
@@ -107,11 +375,11 @@ class Render extends RenderBase {
 	_modelBind(sender, id, instanceId) {
 		this.mBindingModel = this.mModels[id];
 		// VBOをバインドする
-		this.mAttr.pos.bindBuffer(this.mBindingModel.position);
-		this.mAttr.nor.bindBuffer(this.mBindingModel.normal);
-		this.mAttr.col.bindBuffer(this.mBindingModel.color);
+		this.mShaderVar.ver.bindBuffer(this.mBindingModel.ver);
+		this.mShaderVar.nor.bindBuffer(this.mBindingModel.nor);
+		this.mShaderVar.col.bindBuffer(this.mBindingModel.col);
 		// IBOをバインドする
-		this.mGL.bindBuffer(this.mGL.ELEMENT_ARRAY_BUFFER, this.mBindingModel.index);
+		this.mGL.bindBuffer(this.mGL.ELEMENT_ARRAY_BUFFER, this.mBindingModel.idx);
 	}
 
 	/**
@@ -134,7 +402,7 @@ class Render extends RenderBase {
 		this.mGL.uniform3fv(this.mUniLoc.eyeDirection, this.mCam.position);
 		this.mGL.uniform3fv(this.mUniLoc.lightDirection, this.mLight.direction);
 		this.mGL.uniform4fv(this.mUniLoc.ambientColor, this.mLight.ambientColor);
-		this.mGL.drawElements(this.mGL.TRIANGLES, this.mBindingModel.indexCount, this.mGL.UNSIGNED_SHORT, 0);
+		this.mGL.drawElements(this.mGL.TRIANGLES, this.mBindingModel.idxCount, this.mGL.UNSIGNED_SHORT, 0);
 	}
 
 	/**
@@ -146,21 +414,17 @@ class Render extends RenderBase {
 		this.mGL.clearDepth(1.0);
 		this.mGL.clear(this.mGL.COLOR_BUFFER_BIT | this.mGL.DEPTH_BUFFER_BIT);
 
-		// カメラの位置カメラの向き
-		this.mCam = {
-			position: [0.0, 0.0, 80.0],
-			upDirection: [0.0, 1.0, 0.0]
-		};
+		// カメラの位置カメラの姿勢
+		this.mCam.position = [0.0, 0.0, 80.0];
+		this.mCam.upDirection = [0.0, 1.0, 0.0];
 
 		// 光源の向き, 環境光の色
-		this.mLight = {
-			direction: [1.0, 1.0, 1.0],
-			ambientColor: [0.1, 0.1, 0.1, 1.0]
-		};
+		this.mLight.direction = [0.0, 1.0, 0.0];
+		this.mLight.ambientColor = [0.1, 0.1, 0.1, 1.0];
 
 		// ビュー×プロジェクション座標変換行列
 		this.mMatView.lookAt(this.mCam.position, [0, 0, 0], this.mCam.upDirection);
-		this.mMatProj.perspective(45, 0.1, 200, this.mCanvas.width / this.mCanvas.height);
+		this.mMatProj.perspective(30, 0.1, 200, this.mCanvas.width / this.mCanvas.height);
 		Mat.multiply(this.mMatProj, this.mMatView, this.mMatViewProj);
 
 		//
@@ -169,94 +433,4 @@ class Render extends RenderBase {
 		// コンテキストの再描画
 		this.mGL.flush();
 	}
-}
-
-function hsva(h, s, v, a) {
-	if(s > 1 || v > 1 || a > 1){return;}
-	var th = h % 360;
-	var i = Math.floor(th / 60);
-	var f = th / 60 - i;
-	var m = v * (1 - s);
-	var n = v * (1 - s * f);
-	var k = v * (1 - s * (1 - f));
-	var color = new Array();
-	if(!s > 0 && !s < 0){
-		color.push(v, v, v, a);
-	} else {
-		var r = new Array(v, n, m, m, k, v);
-		var g = new Array(k, v, v, n, m, m);
-		var b = new Array(m, m, k, v, v, n);
-		color.push(r[i], g[i], b[i], a);
-	}
-	return color;
-}
-
-function torus(row, column, irad, orad){
-	let pos = new Array();
-	let nor = new Array();
-	let col = new Array();
-	let idx = new Array();
-
-	for(var i = 0; i <= row; i++){
-		var r = Math.PI * 2 / row * i;
-		var rr = Math.cos(r);
-		var ry = Math.sin(r);
-		for(var ii = 0; ii <= column; ii++){
-			var tr = Math.PI * 2 / column * ii;
-			var tx = (rr * irad + orad) * Math.cos(tr);
-			var ty = ry * irad;
-			var tz = (rr * irad + orad) * Math.sin(tr);
-			var rx = rr * Math.cos(tr);
-			var rz = rr * Math.sin(tr);
-			pos.push(tx, ty, tz);
-			nor.push(rx, ry, rz);
-			var tc = hsva(360 / column * ii, 1, 1, 1);
-			col.push(tc[0], tc[1], tc[2], tc[3]);
-		}
-	}
-	for(i = 0; i < row; i++){
-		for(ii = 0; ii < column; ii++){
-			r = (column + 1) * i + ii;
-			idx.push(r, r + column + 1, r + 1);
-			idx.push(r + column + 1, r + column + 2, r + 1);
-		}
-	}
-	return [pos, nor, col, idx];
-}
-
-function sphere(row, column, rad, color) {
-	var i, j, tc;
-	var pos = new Array(), nor = new Array(),
-		col = new Array(), st  = new Array(), idx = new Array();
-	for(i = 0; i <= row; i++){
-		var r = Math.PI / row * i;
-		var ry = Math.cos(r);
-		var rr = Math.sin(r);
-		for(j = 0; j <= column; j++){
-			var tr = Math.PI * 2 / column * j;
-			var tx = rr * rad * Math.cos(tr);
-			var ty = ry * rad;
-			var tz = rr * rad * Math.sin(tr);
-			var rx = rr * Math.cos(tr);
-			var rz = rr * Math.sin(tr);
-			if(color){
-				tc = color;
-			}else{
-				tc = hsva(360 / row * i, 1, 1, 1);
-			}
-			pos.push(tx, ty, tz);
-			nor.push(rx, ry, rz);
-			col.push(tc[0], tc[1], tc[2], tc[3]);
-			st.push(1 - 1 / column * j, 1 / row * i);
-		}
-	}
-	r = 0;
-	for(i = 0; i < row; i++){
-		for(j = 0; j < column; j++){
-			r = (column + 1) * i + j;
-			idx.push(r, r + 1, r + column + 2);
-			idx.push(r, r + column + 2, r + column + 1);
-		}
-	}
-	return [pos, nor, col, st, idx];
 }
