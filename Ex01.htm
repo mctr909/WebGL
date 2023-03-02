@@ -1,52 +1,46 @@
+<!DOCTYPE html>
 <html>
-	<head>
-		<title>WebGL TEST</title>
-		<script type="text/javascript" src="script/model.js"></script>
-		<script type="text/javascript" src="script/render.js"></script>
-		<script type="text/javascript" src="Ex01.js"></script>
-		<script id="vs" type="x-shader/x-vertex">
-			attribute vec3 vertex;
-			attribute vec3 normal;
-			attribute vec4 color;
-			uniform   mat4 mvpMatrix;
-			uniform   mat4 mMatrix;
-			varying   vec3 vVertex;
-			varying   vec3 vNormal;
-			varying   vec4 vColor;
-			
-			void main(void){
-				vVertex  = (mMatrix * vec4(vertex, 1.0)).xyz;
-				vNormal	 = normal;
-				vColor	 = color;
-				gl_Position = mvpMatrix * vec4(vertex, 1.0);
-			}
-		</script>
-		<script id="fs" type="x-shader/x-fragment">
-			precision mediump float;
+<head>
+<meta charset="utf-8">
+</head>
+<body>
+    <canvas id="screen" width="800" height="800" style="background: #000000;"></canvas>
+</body>
+<script id="vs-code" type="x-shader/x-fragment">
+    attribute vec2 vPos;
+    attribute vec2 pPos;
 
-			uniform mat4 invMatrix;
-			uniform vec3 lightPosition;
-			uniform vec3 eyeDirection;
-			uniform vec4 ambientColor;
-			varying vec3 vVertex;
-			varying vec3 vNormal;
-			varying vec4 vColor;
+    varying vec2 mPos;
 
-			void main(void){
-				vec3  lightVec  = lightPosition - vVertex;
-				vec3  invLight  = normalize(invMatrix * vec4(lightVec, 0.0)).xyz;
-				vec3  invEye	= normalize(invMatrix * vec4(eyeDirection, 0.0)).xyz;
-				vec3  halfLE	= normalize(invLight + invEye);
-				float diffuse   = clamp(dot(vNormal, invLight), 0.0, 1.0) + 0.2;
-				float specular  = pow(clamp(dot(vNormal, halfLE), 0.0, 1.0), 50.0);
-				vec4  destColor = vColor * vec4(vec3(diffuse), 1.0) + vec4(vec3(specular), 1.0) + ambientColor;
-				gl_FragColor	= destColor;
-			}
-		</script>
-	</head>
-	<body>
-		<canvas id="canvas"></canvas>
-		<p><input id="axis" type="range" value="20" min=-180 max=180></p>
-		<p><input id="range" type="range" value="50"> time value (0 to 1)</p>
-	</body>
+    void main() {
+        gl_Position = vec4(vPos, 0.0, 1.0);
+        mPos = pPos;
+    }
+</script>
+<script id="fs-code" type="x-shader/x-fragment">
+    varying mediump vec2 mPos;
+
+    void main() {
+        mediump vec2 z = vec2(0.0, 0.0);
+        mediump vec2 t = vec2(0.0, 0.0);
+        int n = 0;
+
+        for (int i = 0;i < 50;i++) {
+            t.x = (z.x * z.x) - (z.y * z.y) + (mPos.x);
+            t.y = (z.x * z.y * 2.0) + (mPos.y);
+            z = vec2(t);
+            if (length(z) > 2.0) {
+                break;
+            }
+            n++;
+        }
+
+        if (n == 50) {
+            gl_FragColor = vec4((mPos + vec2(1.5, 1.0)) / 2.0, 0.0, 1.0);
+        } else {
+            gl_FragColor = vec4(0.0, 0.0, float(n) / 50.0, 1.0);
+        }
+    }
+</script>
+<script type="text/javascript" src="EX01.js"></script>
 </html>
