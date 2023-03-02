@@ -1,72 +1,81 @@
-/// <reference path="script/render.js"/>
+/** @type{HTMLCanvasElement} */
+let screen_elm = document.getElementById("screen");
 
-let gCount = 0;
-let gAxis = null;
-let gRange = null;
-let gRender = null;
+// canvas要素のWebGLコンテキストを取得
+/** @type{WebGLRenderingContext} */
+let gl_context = screen_elm.getContext("experimental-webgl");
 
-(function() {
-	window.requestAnimationFrame =
-		window.requestAnimationFrame ||
-		window.mozRequestAnimationFrame ||
-		window.webkitRequestAnimationFrame ||
-		window.msRequestAnimationFrame
-	;
-})();
+// シェーダーのコンパイルとattribute変数を取得
+/** @type{number} */
+let locVPos;
+/** @type{number} */
+let locPPos;
+{
+    // バーテックス／フラグメントシェーダーを作成
+    let vshader = gl_context.createShader(gl_context.VERTEX_SHADER);
+    let fshader = gl_context.createShader(gl_context.FRAGMENT_SHADER);
 
-onload = function() {
-	gAxis = document.getElementById('axis');
-	gRange = document.getElementById('range');
-	gRender = new Render(document.getElementById("canvas"), 800, 600);
-	gRender.ModelLoad();
-	let objA = new Vec(0.0, 0.0, -20.0);
-	(function loop() {
-		gCount = ++gCount % (6 * 360);
+    // バーテックス／フラグメントシェーダーにソースコードを設定
+    /** @type{HTMLScriptElement} */
+    let elmVS = document.getElementById('vs-code');
+    /** @type{HTMLScriptElement} */
+    let elmFS = document.getElementById('fs-code');
+    gl_context.shaderSource(vshader, elmVS.text);
+    gl_context.shaderSource(fshader, elmFS.text);
 
-		gRender.Clear();
-		gRender.Camera();
+    // バーテックスシェーダー／フラグメントシェーダーのソースをコンパイル
+    gl_context.compileShader(vshader);
+    gl_context.compileShader(fshader);
 
-		let th = gAxis.value * 4*Math.atan(1) / 180.0;
-		let objR = new Vec(Math.cos(th), Math.sin(th), 1.0);
+    // programオブジェクトを作成
+    let gl_program = gl_context.createProgram();
 
-		//
-		let rad = gCount * Math.PI / 360;
-		let time = gRange.value / 100;
-		let qtnA = new Qtn();
-		let qtnB = new Qtn();
-		Qtn.rotate(3 * rad, objR, qtnA);
-		Qtn.rotate(2 * rad, objR, qtnB);
+    // programオブジェクトのシェーダーを設定
+    gl_context.attachShader(gl_program, vshader);
+    gl_context.attachShader(gl_program, fshader);
 
-		gRender.ModelBind("sphere");
+    // シェーダーを設定したprogramをリンクし、割り当て
+    gl_context.linkProgram(gl_program);
+    gl_context.useProgram(gl_program);
 
-		//
-		let matModel = new Mat();
-		qtnA.toMat(matModel);
-		Mat.translate(matModel, objA, matModel);
-		gRender.ModelPosition(matModel.Copy);
+    // attribute変数を取得
+    locVPos = gl_context.getAttribLocation(gl_program, 'vPos');
+    locPPos = gl_context.getAttribLocation(gl_program, 'pPos');
 
-		//
-		qtnB.toMat(matModel);
-		Mat.translate(matModel, objA, matModel);
-		gRender.ModelPosition(matModel.Copy);
+    // attribute vPos/pPosを有効化
+    gl_context.enableVertexAttribArray(locVPos);
+    gl_context.enableVertexAttribArray(locPPos);
+}
 
-		for (let i = 0.0; i <= 1.0; i += 0.05) {
-			let qtnS = new Qtn();
-			Qtn.slerp(qtnA, qtnB, i, qtnS);
-			qtnS.toMat(matModel);
-			Mat.translate(matModel, objA, matModel);
-			gRender.ModelPosition(matModel.Copy);
-		}
+{
+    // バッファ作成
+    let vbuf = gl_context.createBuffer();
+    let pbuf = gl_context.createBuffer();
 
-		//
-		gRender.ModelBind("torus");
-		let qtnS = new Qtn();
-		Qtn.slerp(qtnA, qtnB, time, qtnS);
-		qtnS.toMat(matModel);
-		Mat.translate(matModel, objA, matModel);
-		gRender.ModelPosition(matModel.Copy);
+    // vPos用バッファをバインドしてデータ領域を初期化・頂点データを転送する
+    let vlist = new Float32Array(new Array(
+        -1.0, -1.0,
+        -1.0, 1.0,
+        1.0, -1.0,
+        1.0, 1.0
+    ));
+    gl_context.bindBuffer(gl_context.ARRAY_BUFFER, vbuf);
+    gl_context.bufferData(gl_context.ARRAY_BUFFER, vlist, gl_context.STATIC_DRAW);
 
-		gRender.Flush();
-		window.requestAnimationFrame(loop);
-	})();
-};
+    // pPos用バッファをバインドしてデータ領域を初期化しデータを転送
+    let plist = new Float32Array(new Array(
+        -1.5, -1.0,
+        -1.5, 1.0,
+        0.5, -1.0,
+        0.5, 1.0
+    ));
+    gl_context.bindBuffer(gl_context.ARRAY_BUFFER, pbuf);
+    gl_context.bufferData(gl_context.ARRAY_BUFFER, plist, gl_context.STATIC_DRAW);
+
+    // データを書き込んだバッファをvPos/pPosのデータとして設定
+    gl_context.vertexAttribPointer(locVPos, 2, gl_context.FLOAT, false, 0, 0);
+    gl_context.vertexAttribPointer(locPPos, 2, gl_context.FLOAT, false, 0, 0);
+}
+
+// 描画領域全体を覆う正方形を描画
+gl_context.drawArrays(gl_context.TRIANGLE_STRIP, 0, 4);
