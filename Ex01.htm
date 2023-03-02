@@ -4,43 +4,59 @@
 <meta charset="utf-8">
 </head>
 <body>
-    <canvas id="screen" width="800" height="800" style="background: #000000;"></canvas>
+    <canvas id="screen" width="500" height="500" style="background: #000000;"></canvas>
 </body>
-<script id="vs-code" type="x-shader/x-fragment">
-    attribute vec2 vPos;
-    attribute vec2 pPos;
+<script id="vs_transform" type="x-shader/x-vertex">#version 300 es
+    layout (location = 0) in vec3 position;
+    layout (location = 1) in vec3 velocity;
+    layout (location = 2) in vec4 color;
 
-    varying vec2 mPos;
+    uniform float time;
+    uniform vec2 mouse; // -1.0 ~ 1.0
+    uniform float move; // 0.0 ~ 1.0
 
-    void main() {
-        gl_Position = vec4(vPos, 0.0, 1.0);
-        mPos = pPos;
+    out vec3 vPosition;
+    out vec3 vVelocity;
+    out vec4 vColor;
+
+    void main(){
+        vPosition = position + velocity * 0.1 * move;
+        vec3 p = vec3(mouse, sin(time) * 0.25) - position;
+        vVelocity = normalize(velocity + p * 0.2 * move);
+        vColor = color;
     }
 </script>
-<script id="fs-code" type="x-shader/x-fragment">
-    varying mediump vec2 mPos;
-
-    void main() {
-        mediump vec2 z = vec2(0.0, 0.0);
-        mediump vec2 t = vec2(0.0, 0.0);
-        int n = 0;
-
-        for (int i = 0;i < 50;i++) {
-            t.x = (z.x * z.x) - (z.y * z.y) + (mPos.x);
-            t.y = (z.x * z.y * 2.0) + (mPos.y);
-            z = vec2(t);
-            if (length(z) > 2.0) {
-                break;
-            }
-            n++;
-        }
-
-        if (n == 50) {
-            gl_FragColor = vec4((mPos + vec2(1.5, 1.0)) / 2.0, 0.0, 1.0);
-        } else {
-            gl_FragColor = vec4(0.0, 0.0, float(n) / 50.0, 1.0);
-        }
+<script id="fs_transform" type="x-shader/x-fragment">#version 300 es
+    precision highp float;
+    out vec4 outColor;
+    void main(){
+        outColor = vec4(1.0);
     }
 </script>
+<script id="vs_main" type="x-shader/x-vertex">#version 300 es
+    layout (location = 0) in vec3 position;
+    layout (location = 1) in vec3 velocity;
+    layout (location = 2) in vec4 color;
+
+    uniform mat4 vpMatrix;
+    uniform float move;
+
+    out vec4 vColor;
+
+    void main(){
+        vColor = color + vec4(velocity, 0.0);
+        gl_Position = vpMatrix * vec4(position, 1.0);
+        gl_PointSize = 1.0 * (1.0 + move);
+    }
+</script>
+<script id="fs_main" type="x-shader/x-fragment">#version 300 es
+    precision highp float;
+    in vec4 vColor;
+    out vec4 outColor;
+    void main(){
+        outColor = vColor;
+    }
+</script>
+<script type="text/javascript" src="script/render.js"></script>
 <script type="text/javascript" src="EX01.js"></script>
 </html>

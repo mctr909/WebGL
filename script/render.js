@@ -1160,3 +1160,116 @@ class Render {
 		this.mGL.flush();
 	}
 }
+
+/** @type{WebGL2RenderingContext} */
+let gl;
+
+/**
+ * @param {Array<number>} data
+ * @returns {WebGLBuffer}
+ */
+function create_vbo(data) {
+    let vbo = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(data), gl.STATIC_DRAW);
+    gl.bindBuffer(gl.ARRAY_BUFFER, null);
+    return vbo;
+}
+
+/**
+ * @param {Array<number>} data
+ * @returns {WebGLBuffer}
+ */
+function create_vbo_feedback(data) {
+    let vbo = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(data), gl.DYNAMIC_COPY);
+    gl.bindBuffer(gl.ARRAY_BUFFER, null);
+    return vbo;
+}
+
+/**
+ * @param {string} id
+ * @returns {WebGLShader}
+ */
+function create_shader(id) {
+    let elm = document.getElementById(id);
+    if (!elm) {
+        return null;
+    }
+
+    /** @type{WebGLShader} */
+    let shader;
+    switch (elm.type) {
+        case 'x-shader/x-vertex':
+            shader = gl.createShader(gl.VERTEX_SHADER);
+            break;
+        case 'x-shader/x-fragment':
+            shader = gl.createShader(gl.FRAGMENT_SHADER);
+            break;
+        default:
+            return null;
+    }
+
+    gl.shaderSource(shader, elm.text);
+    gl.compileShader(shader);
+    if(gl.getShaderParameter(shader, gl.COMPILE_STATUS)){
+        return shader;
+    } else {
+        alert(gl.getShaderInfoLog(shader));
+    }
+    return null;
+}
+
+/**
+ * @param {WebGLShader} vs
+ * @param {WebGLShader} fs
+ * @returns {WebGLProgram}
+ */
+function create_program(vs, fs) {
+    let prg = gl.createProgram();
+    gl.attachShader(prg, vs);
+    gl.attachShader(prg, fs);
+    gl.linkProgram(prg);
+    if (gl.getProgramParameter(prg, gl.LINK_STATUS)) {
+        gl.useProgram(prg);
+        return prg;
+    } else {
+        alert(gl.getProgramInfoLog(prg));
+    }
+    return null;
+}
+
+/**
+ * @param {WebGLShader} vs
+ * @param {WebGLShader} fs
+ * @param {Array<string>} varyings
+ * @returns {WebGLProgram}
+ */
+function create_program_tf_separate(vs, fs, varyings) {
+    let prg = gl.createProgram();
+    gl.attachShader(prg, vs);
+    gl.attachShader(prg, fs);
+    gl.transformFeedbackVaryings(prg, varyings, gl.SEPARATE_ATTRIBS);
+    gl.linkProgram(prg);
+    if(gl.getProgramParameter(prg, gl.LINK_STATUS)){
+        gl.useProgram(prg);
+        return prg;
+    }else{
+        alert(gl.getProgramInfoLog(prg));
+    }
+    return null;
+}
+
+/**
+ * @param {Array<WebGLBuffer>} vbo
+ * @param {Array<number>} index
+ * @param {Array<number} size
+ */
+function set_attribute(vbo, index, size) {
+    for(var i in vbo) {
+        gl.bindBuffer(gl.ARRAY_BUFFER, vbo[i]);
+        gl.enableVertexAttribArray(index[i]);
+        gl.vertexAttribPointer(index[i], size[i], gl.FLOAT, false, 0, 0);
+    }
+}

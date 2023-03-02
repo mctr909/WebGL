@@ -1,81 +1,211 @@
-/** @type{HTMLCanvasElement} */
-let screen_elm = document.getElementById("screen");
+/// <reference path="script/render.js"/>
+
+const canvasWidth = 512;
+const canvasHeight = 512;
+const imageWidth = 256;
+const imageHeight = 256;
 
 // canvas要素のWebGLコンテキストを取得
-/** @type{WebGLRenderingContext} */
-let gl_context = screen_elm.getContext("experimental-webgl");
+let elmScreen = document.getElementById("screen");
+/** @type{WebGL2RenderingContext} */
+gl = elmScreen.getContext("webgl2");
 
-// シェーダーのコンパイルとattribute変数を取得
-/** @type{number} */
-let locVPos;
-/** @type{number} */
-let locPPos;
+/** @type{WebGLProgram} */
+let prg_t;
+/** @type{Array<number>} */
+let attLocation = [];
+/** @type{Array<number>} */
+let attStride = [];
+/** @type{Array<WebGLUniformLocation>} */
+let uniLocation = [];
+
+/** @type{WebGLProgram} */
+let prg_main;
+/** @type{Array<number>} */
+let fAttLocation = [];
+/** @type{Array<number>} */
+let fAttStride = [];
+/** @type{Array<WebGLUniformLocation>} */
+let fUniLocation = [];
+
+/*** init shader ***/
 {
-    // バーテックス／フラグメントシェーダーを作成
-    let vshader = gl_context.createShader(gl_context.VERTEX_SHADER);
-    let fshader = gl_context.createShader(gl_context.FRAGMENT_SHADER);
+    // Transform Feedback オブジェクトを生成
+    let transformFeedback = gl.createTransformFeedback();
+    gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, transformFeedback);
 
-    // バーテックス／フラグメントシェーダーにソースコードを設定
-    /** @type{HTMLScriptElement} */
-    let elmVS = document.getElementById('vs-code');
-    /** @type{HTMLScriptElement} */
-    let elmFS = document.getElementById('fs-code');
-    gl_context.shaderSource(vshader, elmVS.text);
-    gl_context.shaderSource(fshader, elmFS.text);
+    // transform out shader
+    let vs = create_shader("vs_transform");
+    let fs = create_shader("fs_transform");
+    let outVaryings = ['vPosition', 'vVelocity', 'vColor'];
+    prg_t = create_program_tf_separate(vs, fs, outVaryings);
+    attLocation[0] = 0;
+    attLocation[1] = 1;
+    attLocation[2] = 2;
+    attStride[0] = 3;
+    attStride[1] = 3;
+    attStride[2] = 4;
+    uniLocation[0] = gl.getUniformLocation(prg_t, 'time');
+    uniLocation[1] = gl.getUniformLocation(prg_t, 'mouse');
+    uniLocation[2] = gl.getUniformLocation(prg_t, 'move');
 
-    // バーテックスシェーダー／フラグメントシェーダーのソースをコンパイル
-    gl_context.compileShader(vshader);
-    gl_context.compileShader(fshader);
+    // feedback in shader
+    vs = create_shader("vs_main");
+    fs = create_shader("fs_main");
+    prg_main = create_program(vs, fs);
+    fAttLocation[0] = 0;
+    fAttLocation[1] = 1;
+    fAttLocation[2] = 2;
+    fAttStride[0] = 3;
+    fAttStride[1] = 3;
+    fAttStride[2] = 4;
+    fUniLocation[0] = gl.getUniformLocation(prg_main, 'vpMatrix');
+    fUniLocation[1] = gl.getUniformLocation(prg_main, 'move');
 
-    // programオブジェクトを作成
-    let gl_program = gl_context.createProgram();
-
-    // programオブジェクトのシェーダーを設定
-    gl_context.attachShader(gl_program, vshader);
-    gl_context.attachShader(gl_program, fshader);
-
-    // シェーダーを設定したprogramをリンクし、割り当て
-    gl_context.linkProgram(gl_program);
-    gl_context.useProgram(gl_program);
-
-    // attribute変数を取得
-    locVPos = gl_context.getAttribLocation(gl_program, 'vPos');
-    locPPos = gl_context.getAttribLocation(gl_program, 'pPos');
-
-    // attribute vPos/pPosを有効化
-    gl_context.enableVertexAttribArray(locVPos);
-    gl_context.enableVertexAttribArray(locPPos);
+    // flags
+    gl.disable(gl.DEPTH_TEST);
+    gl.disable(gl.CULL_FACE);
+    gl.enable(gl.BLEND);
+    gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE, gl.ONE, gl.ONE);
+    gl.disable(gl.RASTERIZER_DISCARD);
 }
 
+let VBOArray;
+let vpMatrix = new Mat();
+let run = true;
+let isMousedown = false;
+let count = 0;
+let nowTime = 0;
+let startTime = Date.now();
+let mousePosition = [0.0, 0.0];
+let mouseMovePower = 0.0;
+
+/*** set value ***/
 {
-    // バッファ作成
-    let vbuf = gl_context.createBuffer();
-    let pbuf = gl_context.createBuffer();
+    let i, j, k, l, m;
+    let x, y;
+    let position = [];
+    let velocity = [];
+    let color = [];
+    for(i = 0; i < imageHeight; ++i){
+        y = i / imageHeight * 2.0 - 1.0;
+        k = i * imageWidth;
+        for(j = 0; j < imageWidth; ++j){
+            x = j / imageWidth * 2.0 - 1.0;
+            l = (k + j) * 4;
+            position.push(x, -y, 0.0);
+            m = Math.sqrt(x * x + y * y);
+            velocity.push(x / m, -y / m, 0.0);
+            color.push(
+                255 / 255,
+                191 / 255,
+                191 / 255,
+                191 / 255
+            );
+        }
+    }
+    VBOArray = [
+        [
+            create_vbo(position),
+            create_vbo(velocity),
+            create_vbo(color)
+        ], [
+            create_vbo(position),
+            create_vbo(velocity),
+            create_vbo(color)
+        ]
+    ];
 
-    // vPos用バッファをバインドしてデータ領域を初期化・頂点データを転送する
-    let vlist = new Float32Array(new Array(
-        -1.0, -1.0,
-        -1.0, 1.0,
-        1.0, -1.0,
-        1.0, 1.0
-    ));
-    gl_context.bindBuffer(gl_context.ARRAY_BUFFER, vbuf);
-    gl_context.bufferData(gl_context.ARRAY_BUFFER, vlist, gl_context.STATIC_DRAW);
-
-    // pPos用バッファをバインドしてデータ領域を初期化しデータを転送
-    let plist = new Float32Array(new Array(
-        -1.5, -1.0,
-        -1.5, 1.0,
-        0.5, -1.0,
-        0.5, 1.0
-    ));
-    gl_context.bindBuffer(gl_context.ARRAY_BUFFER, pbuf);
-    gl_context.bufferData(gl_context.ARRAY_BUFFER, plist, gl_context.STATIC_DRAW);
-
-    // データを書き込んだバッファをvPos/pPosのデータとして設定
-    gl_context.vertexAttribPointer(locVPos, 2, gl_context.FLOAT, false, 0, 0);
-    gl_context.vertexAttribPointer(locPPos, 2, gl_context.FLOAT, false, 0, 0);
+    let vMatrix = new Mat();
+    let pMatrix = new Mat();
+    vMatrix.lookAt([0.0, 0.0, 3.0], [0.0, 0.0, 0.0], [0.0, 1.0, 0.0]);
+    pMatrix.perspective(60, 0.1, 10.0, canvasWidth / canvasHeight);
+    Mat.multiply(pMatrix, vMatrix, vpMatrix);
 }
 
-// 描画領域全体を覆う正方形を描画
-gl_context.drawArrays(gl_context.TRIANGLE_STRIP, 0, 4);
+/*** set event ***/
+{
+    // mousemove event
+    elmScreen.addEventListener('mousedown', function(eve) {
+        isMousedown = true;
+        mouseMovePower = 1.0;
+    }, false);
+    elmScreen.addEventListener('mouseup', function(eve) {
+        isMousedown = false;
+    }, false);
+    elmScreen.addEventListener('mousemove', function(eve) {
+        let bound = eve.currentTarget.getBoundingClientRect();
+        let x = eve.clientX - bound.left;
+        let y = eve.clientY - bound.top;
+        mousePosition = [
+            x / bound.width * 2.0 - 1.0,
+            -(y / bound.height * 2.0 - 1.0)
+        ];
+    }, false);
+}
+
+render();
+function render() {
+    var countIndex = (++count) % 2;
+    var invertIndex = 1 - countIndex;
+
+    nowTime = (Date.now() - startTime) / 1000;
+
+    // mouse move power
+    if(isMousedown !== true){
+        mouseMovePower *= 0.95;
+    }
+
+    // transform program
+    {
+        gl.useProgram(prg_t);
+
+        // set vbo
+        set_attribute(VBOArray[countIndex], attLocation, attStride);
+        gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, VBOArray[invertIndex][0]);
+        gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 1, VBOArray[invertIndex][1]);
+        gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 2, VBOArray[invertIndex][2]);
+
+        // begin transform feedback
+        gl.enable(gl.RASTERIZER_DISCARD);
+        gl.beginTransformFeedback(gl.POINTS);
+
+        // vertex transform
+        gl.uniform1f(uniLocation[0], nowTime);
+        gl.uniform2fv(uniLocation[1], mousePosition);
+        gl.uniform1f(uniLocation[2], mouseMovePower);
+        gl.drawArrays(gl.POINTS, 0, imageWidth * imageHeight);
+
+        // end transform feedback
+        gl.disable(gl.RASTERIZER_DISCARD);
+        gl.endTransformFeedback();
+        gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, null);
+        gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 1, null);
+        gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 2, null);
+
+        // clear
+        gl.clearColor(0.0, 0.0, 0.0, 1.0);
+        gl.clearDepth(1.0);
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+        gl.viewport(0, 0, canvasWidth, canvasHeight);
+    }
+
+    // feedback program
+    {
+        gl.useProgram(prg_main);
+
+        // set vbo
+        set_attribute(VBOArray[invertIndex], fAttLocation, fAttStride);
+
+        // push and render
+        gl.uniformMatrix4fv(fUniLocation[0], false, vpMatrix.Array);
+        gl.uniform1f(fUniLocation[1], mouseMovePower);
+        gl.drawArrays(gl.POINTS, 0, imageWidth * imageHeight);
+
+        gl.flush();
+    }
+
+    if (run) {
+        requestAnimationFrame(render);
+    }
+}
