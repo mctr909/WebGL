@@ -30,10 +30,10 @@ let FBO_1;
 const DATA_SIZE = 512;
 let animation = "";
 let timer;
-let delay = 0;
-let it = 10;
-let frames = 0;
 let time;
+let it = 10;
+let interval = 0;
+let frames = 0;
 
 function getShader(id) {
     let shaderScript = document.getElementById(id);
@@ -69,19 +69,35 @@ function getProgram(vs_id, fs_id) {
     return prg;
 }
 
-function createData() {
+function createData(isInit=false) {
     let ret = [];
-    for(let i = 0; i<DATA_SIZE; i++) {
-        for(let j = 0; j<DATA_SIZE; j++) {
-            let T = 0;
-            if (i>200 && i<300) {
-                if (j>100 && j<240) {
-                    T = 1;
-                } else if (j>260 && j<400) {
-                    T = -1;
+    if (isInit) {
+        for(let y = 0; y<DATA_SIZE; y++) {
+            for(let x = 0; x<DATA_SIZE; x++) {
+                let T = 0;
+                if (x>150 && x<350) {
+                    if (y>100 && y<150) {
+                        T = .005;
+                    } else if (y>350 && y<400) {
+                        T = -.005;
+                    }
                 }
+                ret.push(0, 0, T, 0);
             }
-            ret.push(0, 0, T, 0);
+        }
+    } else {
+        for(let y = 0; y<DATA_SIZE; y++) {
+            for(let x = 0; x<DATA_SIZE; x++) {
+                let T = 0;
+                if (y>200 && y<300) {
+                    if (x>100 && x<240) {
+                        T = 1;
+                    } else if (x>260 && x<400) {
+                        T = -1;
+                    }
+                }
+                ret.push(0, 0, T, 0);
+            }
         }
     }
     return ret;
@@ -154,20 +170,7 @@ function onLoad(elm_id) {
     }
 
     {
-        let pixels = [];
-        for(let i = 0; i<DATA_SIZE; i++) {
-            for(let j = 0; j<DATA_SIZE; j++) {
-                let T = 0;
-                if (j>150 && j<350) {
-                    if (i>100 && i<150) {
-                        T = .005;
-                    } else if (i>350 && i<400) {
-                        T = -.005;
-                    }
-                }
-                pixels.push(0, 0, T, 0);
-            }
-        }
+        let pixels = createData(true);
         let texture2 = gl.createTexture();
         gl.activeTexture(gl.TEXTURE2);
         gl.bindTexture(gl.TEXTURE_2D, texture2);
@@ -260,10 +263,10 @@ function anim() {
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, DATA_SIZE, DATA_SIZE, 0, gl.RGBA, gl.FLOAT, new Float32Array(pixels));
         animation = "animate";
     case "animate":
-        if (delay == 0) {
+        if (interval == 0) {
             requestAnimationFrame(anim);
         } else {
-            setTimeout("requestAnimationFrame(anim)", delay);
+            setTimeout("requestAnimationFrame(anim)", interval);
         }
         break;
     case "stop":
@@ -299,15 +302,15 @@ function reset() {
         animation = "reset";
     }
 }
-function fr(){
+function fr() {
     var ti = new Date().getTime();
     var fps = Math.round(1000*frames/(ti - time));
-    document.getElementById("framerate").value = fps;
+    document.getElementById("framerate").innerHTML = fps;
     frames = 0;
     time = ti;
 }
 function setDelay(val) {
-    delay = parseInt(val);
+    interval = parseInt(val);
 }
 function setIt(val) {
     it = parseInt(val);

@@ -119,11 +119,11 @@
 </head>
 <body onload="onLoad('c')">
   <canvas id="c" width="512" height="512"></canvas><br>
-  <button onclick="reset()">Reset</button>
-  <input type="button" onclick="run()" value="Stop" size="1" id="runBtn">
   It<input size="1" value="10" onchange="setIt( this.value )">
   &beta;<input size="2" value="10" onchange="setBu( this.value )">
-  interval<input size="1" value="0" onchange="setInterval( this.value )">
-  fps<input size="1" id="framerate">
+  interval<input size="1" value="0" onchange="setDelay( this.value )"><br>
+  fps:<span size="1" id="framerate"></span><br>
+  <button onclick="reset()">Reset</button>
+  <input type="button" onclick="run()" value="Stop" size="1" id="runBtn">
 </body>
 </html>
