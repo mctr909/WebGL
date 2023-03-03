@@ -13,20 +13,20 @@ gl = elmScreen.getContext("webgl2");
 /** @type{WebGLProgram} */
 let prg_t;
 /** @type{Array<number>} */
+let tAttLocation = [];
+/** @type{Array<number>} */
+let tAttStride = [];
+/** @type{Array<WebGLUniformLocation>} */
+let tUniLocation = [];
+
+/** @type{WebGLProgram} */
+let prg_main;
+/** @type{Array<number>} */
 let attLocation = [];
 /** @type{Array<number>} */
 let attStride = [];
 /** @type{Array<WebGLUniformLocation>} */
 let uniLocation = [];
-
-/** @type{WebGLProgram} */
-let prg_main;
-/** @type{Array<number>} */
-let fAttLocation = [];
-/** @type{Array<number>} */
-let fAttStride = [];
-/** @type{Array<WebGLUniformLocation>} */
-let fUniLocation = [];
 
 /*** init shader ***/
 {
@@ -39,28 +39,28 @@ let fUniLocation = [];
     let fs = create_shader("fs_transform");
     let outVaryings = ['vPosition', 'vVelocity', 'vColor'];
     prg_t = create_program_tf_separate(vs, fs, outVaryings);
+    tAttLocation[0] = 0;
+    tAttLocation[1] = 1;
+    tAttLocation[2] = 2;
+    tAttStride[0] = 3;
+    tAttStride[1] = 3;
+    tAttStride[2] = 4;
+    tUniLocation[0] = gl.getUniformLocation(prg_t, 'time');
+    tUniLocation[1] = gl.getUniformLocation(prg_t, 'mouse');
+    tUniLocation[2] = gl.getUniformLocation(prg_t, 'move');
+
+    // feedback in shader
+    vs = create_shader("vs_main");
+    fs = create_shader("fs_main");
+    prg_main = create_program(vs, fs);
     attLocation[0] = 0;
     attLocation[1] = 1;
     attLocation[2] = 2;
     attStride[0] = 3;
     attStride[1] = 3;
     attStride[2] = 4;
-    uniLocation[0] = gl.getUniformLocation(prg_t, 'time');
-    uniLocation[1] = gl.getUniformLocation(prg_t, 'mouse');
-    uniLocation[2] = gl.getUniformLocation(prg_t, 'move');
-
-    // feedback in shader
-    vs = create_shader("vs_main");
-    fs = create_shader("fs_main");
-    prg_main = create_program(vs, fs);
-    fAttLocation[0] = 0;
-    fAttLocation[1] = 1;
-    fAttLocation[2] = 2;
-    fAttStride[0] = 3;
-    fAttStride[1] = 3;
-    fAttStride[2] = 4;
-    fUniLocation[0] = gl.getUniformLocation(prg_main, 'vpMatrix');
-    fUniLocation[1] = gl.getUniformLocation(prg_main, 'move');
+    uniLocation[0] = gl.getUniformLocation(prg_main, 'vpMatrix');
+    uniLocation[1] = gl.getUniformLocation(prg_main, 'move');
 
     // flags
     gl.disable(gl.DEPTH_TEST);
@@ -70,31 +70,28 @@ let fUniLocation = [];
     gl.disable(gl.RASTERIZER_DISCARD);
 }
 
-let VBOArray;
-let vpMatrix = new Mat();
-let run = true;
-let isMousedown = false;
-let count = 0;
-let nowTime = 0;
-let startTime = Date.now();
-let mousePosition = [0.0, 0.0];
-let mouseMovePower = 0.0;
-
 /*** set value ***/
+let vpMatrix = new Mat();
+/** @type{Array<Array<WebGLBuffer>>} */
+let VBOArray;
 {
-    let i, j, k, l, m;
-    let x, y;
+    let vMatrix = new Mat();
+    let pMatrix = new Mat();
+    vMatrix.lookAt([0.0, 0.0, 3.0], [0.0, 0.0, 0.0], [0.0, 1.0, 0.0]);
+    pMatrix.perspective(60, 0.1, 10.0, canvasWidth / canvasHeight);
+    Mat.multiply(pMatrix, vMatrix, vpMatrix);
+
     let position = [];
     let velocity = [];
     let color = [];
-    for(i = 0; i < imageHeight; ++i){
-        y = i / imageHeight * 2.0 - 1.0;
-        k = i * imageWidth;
-        for(j = 0; j < imageWidth; ++j){
-            x = j / imageWidth * 2.0 - 1.0;
-            l = (k + j) * 4;
+    for(let i = 0; i < imageHeight; ++i){
+        let y = i / imageHeight * 2.0 - 1.0;
+        let k = i * imageWidth;
+        for(let j = 0; j < imageWidth; ++j){
+            let x = j / imageWidth * 2.0 - 1.0;
+            let m = Math.sqrt(x * x + y * y);
+            let l = (k + j) * 4;
             position.push(x, -y, 0.0);
-            m = Math.sqrt(x * x + y * y);
             velocity.push(x / m, -y / m, 0.0);
             color.push(
                 255 / 255,
@@ -115,15 +112,12 @@ let mouseMovePower = 0.0;
             create_vbo(color)
         ]
     ];
-
-    let vMatrix = new Mat();
-    let pMatrix = new Mat();
-    vMatrix.lookAt([0.0, 0.0, 3.0], [0.0, 0.0, 0.0], [0.0, 1.0, 0.0]);
-    pMatrix.perspective(60, 0.1, 10.0, canvasWidth / canvasHeight);
-    Mat.multiply(pMatrix, vMatrix, vpMatrix);
 }
 
 /*** set event ***/
+let isMousedown = false;
+let mousePosition = [0.0, 0.0];
+let mouseMovePower = 0.0;
 {
     // mousemove event
     elmScreen.addEventListener('mousedown', function(eve) {
@@ -144,16 +138,19 @@ let mouseMovePower = 0.0;
     }, false);
 }
 
+let vbo_in = 1;
+var vbo_out = 0;
+let startTime = Date.now();
 render();
 function render() {
-    var countIndex = (++count) % 2;
-    var invertIndex = 1 - countIndex;
+    vbo_in = ++vbo_in % 2;
+    vbo_out = 1 - vbo_in;
 
-    nowTime = (Date.now() - startTime) / 1000;
+    let nowTime = (Date.now() - startTime) / 1000;
 
     // mouse move power
-    if(isMousedown !== true){
-        mouseMovePower *= 0.95;
+    if (isMousedown !== true) {
+        mouseMovePower *= 1 - 1/60;
     }
 
     // transform program
@@ -161,19 +158,19 @@ function render() {
         gl.useProgram(prg_t);
 
         // set vbo
-        set_attribute(VBOArray[countIndex], attLocation, attStride);
-        gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, VBOArray[invertIndex][0]);
-        gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 1, VBOArray[invertIndex][1]);
-        gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 2, VBOArray[invertIndex][2]);
+        set_attribute(VBOArray[vbo_in], tAttLocation, tAttStride);
+        gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, VBOArray[vbo_out][0]);
+        gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 1, VBOArray[vbo_out][1]);
+        gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 2, VBOArray[vbo_out][2]);
 
         // begin transform feedback
         gl.enable(gl.RASTERIZER_DISCARD);
         gl.beginTransformFeedback(gl.POINTS);
 
         // vertex transform
-        gl.uniform1f(uniLocation[0], nowTime);
-        gl.uniform2fv(uniLocation[1], mousePosition);
-        gl.uniform1f(uniLocation[2], mouseMovePower);
+        gl.uniform1f(tUniLocation[0], nowTime);
+        gl.uniform2fv(tUniLocation[1], mousePosition);
+        gl.uniform1f(tUniLocation[2], mouseMovePower);
         gl.drawArrays(gl.POINTS, 0, imageWidth * imageHeight);
 
         // end transform feedback
@@ -195,17 +192,15 @@ function render() {
         gl.useProgram(prg_main);
 
         // set vbo
-        set_attribute(VBOArray[invertIndex], fAttLocation, fAttStride);
+        set_attribute(VBOArray[vbo_out], attLocation, attStride);
 
         // push and render
-        gl.uniformMatrix4fv(fUniLocation[0], false, vpMatrix.Array);
-        gl.uniform1f(fUniLocation[1], mouseMovePower);
+        gl.uniformMatrix4fv(uniLocation[0], false, vpMatrix.Array);
+        gl.uniform1f(uniLocation[1], mouseMovePower);
         gl.drawArrays(gl.POINTS, 0, imageWidth * imageHeight);
 
         gl.flush();
     }
 
-    if (run) {
-        requestAnimationFrame(render);
-    }
+    requestAnimationFrame(render);
 }

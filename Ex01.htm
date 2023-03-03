@@ -11,13 +11,13 @@
     layout (location = 1) in vec3 velocity;
     layout (location = 2) in vec4 color;
 
-    uniform float time;
-    uniform vec2 mouse; // -1.0 ~ 1.0
-    uniform float move; // 0.0 ~ 1.0
-
     out vec3 vPosition;
     out vec3 vVelocity;
     out vec4 vColor;
+
+    uniform float time;
+    uniform vec2 mouse; // -1.0 ~ 1.0
+    uniform float move; // 0.0 ~ 1.0
 
     void main(){
         vPosition = position + velocity * 0.1 * move;
@@ -27,21 +27,17 @@
     }
 </script>
 <script id="fs_transform" type="x-shader/x-fragment">#version 300 es
-    precision highp float;
-    out vec4 outColor;
-    void main(){
-        outColor = vec4(1.0);
-    }
+    void main(){}
 </script>
 <script id="vs_main" type="x-shader/x-vertex">#version 300 es
     layout (location = 0) in vec3 position;
     layout (location = 1) in vec3 velocity;
     layout (location = 2) in vec4 color;
 
+    out vec4 vColor;
+
     uniform mat4 vpMatrix;
     uniform float move;
-
-    out vec4 vColor;
 
     void main(){
         vColor = color + vec4(velocity, 0.0);
@@ -53,7 +49,7 @@
     precision highp float;
     in vec4 vColor;
     out vec4 outColor;
-    void main(){
+    void main() {
         outColor = vColor;
     }
 </script>
