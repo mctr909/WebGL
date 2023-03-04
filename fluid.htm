@@ -12,12 +12,12 @@
 </script>
 <script id="shader-fs-show" type="x-shader/x-fragment">
     precision highp float;
-    uniform sampler2D smpl;
+    uniform sampler2D field;
 
     varying vec2 pos;
 
     void main() {
-        float T = texture2D(smpl, pos).z;
+        float T = texture2D(field, pos).z;
         if(T > 0.) {
             gl_FragColor = vec4(T, 0., 0., 1.);
         } else {
@@ -28,20 +28,20 @@
 
 <script id="source-fs" type="x-shader/x-fragment">
     precision highp float;
-    uniform sampler2D smpl;
-    uniform sampler2D smpl_input;
+    uniform sampler2D field;
+    uniform sampler2D field_input;
 
     varying vec2 pos;
 
     void main() {
-        vec4 t = texture2D(smpl, pos);
-        t.z += texture2D(smpl_input, pos).z;
+        vec4 t = texture2D(field, pos);
+        t.z += texture2D(field_input, pos).z;
         gl_FragColor = t;
     }
 </script>
 <script id="force-fs" type="x-shader/x-fragment">
     precision highp float;
-    uniform sampler2D smpl;
+    uniform sampler2D field;
     uniform float c;
 
     varying vec2 pos;
@@ -49,14 +49,14 @@
     const float h = 1./__DATA_SIZE.;
 
     void main() {
-        vec4 t = texture2D(smpl, pos);
-        t.y += c*(t.z + texture2D(smpl, vec2(pos.x, pos.y + h)).z);
+        vec4 t = texture2D(field, pos);
+        t.y += c*(t.z + texture2D(field, vec2(pos.x, pos.y + h)).z);
         gl_FragColor = t;
     }
 </script>
 <script id="velocity-fs" type="x-shader/x-fragment">
     precision highp float;
-    uniform sampler2D smpl;
+    uniform sampler2D field;
 
     varying vec2 pos;
 
@@ -66,40 +66,40 @@
 
     void main() {
         vec2 D = -tau*vec2(
-            texture2D(smpl, pos).x + texture2D(smpl, vec2(pos.x - h, pos.y)).x,
-            texture2D(smpl, pos).y + texture2D(smpl, vec2(pos.x, pos.y - h)).y
+            texture2D(field, pos).x + texture2D(field, vec2(pos.x - h, pos.y)).x,
+            texture2D(field, pos).y + texture2D(field, vec2(pos.x, pos.y - h)).y
         );
         vec2 De = fract(D);
         vec2 pos_d = pos + floor(D)*h;
         vec3 newV = (
-            texture2D(smpl, pos_d).rgb * (1. - De.y) +
-            texture2D(smpl, vec2(pos_d.x, pos_d.y + h)).rgb * De.y
+            texture2D(field, pos_d).rgb * (1. - De.y) +
+            texture2D(field, vec2(pos_d.x, pos_d.y + h)).rgb * De.y
         ) * (1. - De.x) +
         (
-            texture2D(smpl, vec2(pos_d.x + h, pos_d.y)).rgb * (1. - De.y) +
-            texture2D(smpl, vec2(pos_d.x + h, pos_d.y + h)).rgb * De.y
+            texture2D(field, vec2(pos_d.x + h, pos_d.y)).rgb * (1. - De.y) +
+            texture2D(field, vec2(pos_d.x + h, pos_d.y + h)).rgb * De.y
         ) * De.x;
-        gl_FragColor = vec4(newV, texture2D(smpl, pos).a);
+        gl_FragColor = vec4(newV, texture2D(field, pos).a);
     }
 </script>
 <script id="pressure-fs" type="x-shader/x-fragment">
     precision highp float;
-    uniform sampler2D smpl;
+    uniform sampler2D field;
 
     varying vec2 pos;
 
     const float h = 1./__DATA_SIZE.;
 
     void main() {
-        vec4 t = texture2D(smpl, pos);
+        vec4 t = texture2D(field, pos);
         t.a = (
-            texture2D(smpl, vec2(pos.x - h, pos.y)).a +
-            texture2D(smpl, vec2(pos.x + h, pos.y)).a +
-            texture2D(smpl, vec2(pos.x, pos.y - h)).a +
-            texture2D(smpl, vec2(pos.x, pos.y + h)).a -
+            texture2D(field, vec2(pos.x - h, pos.y)).a +
+            texture2D(field, vec2(pos.x + h, pos.y)).a +
+            texture2D(field, vec2(pos.x, pos.y - h)).a +
+            texture2D(field, vec2(pos.x, pos.y + h)).a -
             (
-                t.x - texture2D(smpl, vec2(pos.x - h, pos.y)).x +
-                t.y - texture2D(smpl, vec2(pos.x, pos.y - h)).y
+                t.x - texture2D(field, vec2(pos.x - h, pos.y)).x +
+                t.y - texture2D(field, vec2(pos.x, pos.y - h)).y
             ) * h
         ) *.25;
         gl_FragColor = t;
@@ -107,7 +107,7 @@
 </script>
 <script id="div-fs" type="x-shader/x-fragment">
     precision highp float;
-    uniform sampler2D smpl;
+    uniform sampler2D field;
 
     varying vec2 pos;
 
@@ -115,9 +115,9 @@
     const float h = 1./n;
 
     void main() {
-        vec4 t = texture2D(smpl, pos);
-        t.x -= (texture2D(smpl, vec2(pos.x + h, pos.y)).a - t.a)*n;
-        t.y -= (texture2D(smpl, vec2(pos.x, pos.y + h)).a - t.a)*n;
+        vec4 t = texture2D(field, pos);
+        t.x -= (texture2D(field, vec2(pos.x + h, pos.y)).a - t.a)*n;
+        t.y -= (texture2D(field, vec2(pos.x, pos.y + h)).a - t.a)*n;
         gl_FragColor = t;
     }
 </script>

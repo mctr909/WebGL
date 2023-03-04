@@ -14,7 +14,7 @@ let PROG_DIV;
 let PROG_SHOW;
 
 /** @type{WebGLUniformLocation} */
-let UNILOC_SMPL;
+let UNILOC_FIELD;
 
 /** @type{WebGLTexture} */
 let TEX_0;
@@ -108,11 +108,11 @@ function onLoad(elm_id) {
         PROG_SHOW = create_program(vs, create_shader("shader-fs-show"));
 
         gl.useProgram(PROG_SOURCE);
-        gl.uniform1i(gl.getUniformLocation(PROG_SOURCE, "smpl_input"), 2);
+        gl.uniform1i(gl.getUniformLocation(PROG_SOURCE, "field_input"), 2);
 
         gl.useProgram(PROG_FORCE);
         gl.uniform1f(gl.getUniformLocation(PROG_FORCE, "c"), .001*.5*10);
-        gl.uniform1i(gl.getUniformLocation(PROG_FORCE, "smpl"), 1);
+        gl.uniform1i(gl.getUniformLocation(PROG_FORCE, "field"), 1);
 
         gl.useProgram(PROG_VELO);
         let aPosLoc = gl.getAttribLocation(PROG_VELO, "aPos");
@@ -131,10 +131,10 @@ function onLoad(elm_id) {
         gl.vertexAttribPointer(aTexLoc, 2, gl.FLOAT, gl.FALSE, 16, 8);
 
         gl.useProgram(PROG_PRES);
-        UNILOC_SMPL = gl.getUniformLocation(PROG_PRES, "smpl", 0);
+        UNILOC_FIELD = gl.getUniformLocation(PROG_PRES, "field", 0);
 
         gl.useProgram(PROG_DIV);
-        gl.uniform1i(gl.getUniformLocation(PROG_DIV, "smpl"), 1);
+        gl.uniform1i(gl.getUniformLocation(PROG_DIV, "field"), 1);
     }
 
     {
@@ -201,11 +201,11 @@ function draw() {
 
     gl.useProgram(PROG_PRES);
     for(var i = 0; i < it; i++) {
-        gl.uniform1i(UNILOC_SMPL, 1);
+        gl.uniform1i(UNILOC_FIELD, 1);
         gl.bindFramebuffer(gl.FRAMEBUFFER, FBO_0);
         gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     
-        gl.uniform1i(UNILOC_SMPL, 0);
+        gl.uniform1i(UNILOC_FIELD, 0);
         gl.bindFramebuffer(gl.FRAMEBUFFER, FBO_1);
         gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     }
