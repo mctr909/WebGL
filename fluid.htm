@@ -31,7 +31,7 @@
     uniform sampler2D smpl;
     varying vec2 tPos;
 
-    const float h = 1./512.;
+    const float h = 1./1024.;
     const float dt = .001;
     const float tau = .5*dt/h;
 
@@ -57,7 +57,7 @@
     precision highp float;
     uniform sampler2D smpl;
     varying vec2 tPos;
-    const float h = 1./512.;
+    const float h = 1./1024.;
 
     void main(void) {
         vec4 t = texture2D(smpl, tPos);
@@ -79,7 +79,7 @@
     uniform sampler2D smpl;
     uniform float c;
     varying vec2 tPos;
-    const float h = 1./512.;
+    const float h = 1./1024.;
 
     void main(void) {
         vec4 t = texture2D(smpl, tPos);
@@ -91,7 +91,7 @@
     precision highp float;
     uniform sampler2D smpl;
     varying vec2 tPos;
-    const float n = 512.;
+    const float n = 1024.;
     const float h = 1./n;
 
     void main(void) {
@@ -118,7 +118,7 @@
 <script type="text/javascript" src="fluid.js"></script>
 </head>
 <body onload="onLoad('c')">
-  <canvas id="c" width="512" height="512"></canvas><br>
+  <canvas id="c" width="1024" height="1024"></canvas><br>
   It<input size="1" value="10" onchange="setIt( this.value )">
   &beta;<input size="2" value="10" onchange="setBu( this.value )">
   interval<input size="1" value="0" onchange="setDelay( this.value )"><br>

@@ -27,7 +27,7 @@ let FBO_0;
 /** @type{WebGLFramebuffer} */
 let FBO_1;
 
-const DATA_SIZE = 512;
+const DATA_SIZE = 1024;
 let animation = "";
 let timer;
 let time;
@@ -72,13 +72,15 @@ function getProgram(vs_id, fs_id) {
 function createData(isInit=false) {
     let ret = [];
     if (isInit) {
-        for(let y = 0; y<DATA_SIZE; y++) {
-            for(let x = 0; x<DATA_SIZE; x++) {
+        for(let py = 0; py<DATA_SIZE; py++) {
+            let y = py * 2 / DATA_SIZE - 1;
+            for(let px = 0; px<DATA_SIZE; px++) {
+                let x = px * 2 / DATA_SIZE - 1;
                 let T = 0;
-                if (x>150 && x<350) {
-                    if (y>100 && y<150) {
+                if (x>-0.2 && x<0.2) {
+                    if (y>-0.4 && y<-0.3) {
                         T = .005;
-                    } else if (y>350 && y<400) {
+                    } else if (y>0.3 && y<0.4) {
                         T = -.005;
                     }
                 }
@@ -86,13 +88,15 @@ function createData(isInit=false) {
             }
         }
     } else {
-        for(let y = 0; y<DATA_SIZE; y++) {
-            for(let x = 0; x<DATA_SIZE; x++) {
+        for(let py = 0; py<DATA_SIZE; py++) {
+            let y = py * 2 / DATA_SIZE - 1;
+            for(let px = 0; px<DATA_SIZE; px++) {
+                let x = px * 2 / DATA_SIZE - 1;
                 let T = 0;
-                if (y>200 && y<300) {
-                    if (x>100 && x<240) {
+                if (y>-0.1 && y<0.1) {
+                    if (x>-0.3 && x<-0.05) {
                         T = 1;
-                    } else if (x>260 && x<400) {
+                    } else if (x>0.05 && x<0.3) {
                         T = -1;
                     }
                 }
