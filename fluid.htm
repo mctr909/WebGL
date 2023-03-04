@@ -1,23 +1,23 @@
 <html><head>
-<title>2D fluid dynamics</title>
-
 <script id="shader-vs" type="x-shader/x-vertex">
     attribute vec2 aPos;
     attribute vec2 aTexCoord;
-    varying   vec2 tPos;
 
-    void main(void) {
+    varying vec2 pos;
+
+    void main() {
         gl_Position = vec4(aPos, 0., 1.);
-        tPos = aTexCoord;
+        pos = aTexCoord;
     }
 </script>
 <script id="shader-fs-show" type="x-shader/x-fragment">
     precision highp float;
     uniform sampler2D smpl;
-    varying vec2 tPos;
 
-    void main(void) {
-        float T = texture2D(smpl, tPos).b;
+    varying vec2 pos;
+
+    void main() {
+        float T = texture2D(smpl, pos).z;
         if(T > 0.) {
             gl_FragColor = vec4(T, 0., 0., 1.);
         } else {
@@ -26,51 +26,16 @@
     }
 </script>
 
-<script id="velocity-fs" type="x-shader/x-fragment">
+<script id="source-fs" type="x-shader/x-fragment">
     precision highp float;
     uniform sampler2D smpl;
-    varying vec2 tPos;
+    uniform sampler2D smpl_input;
 
-    const float h = 1./1024.;
-    const float dt = .001;
-    const float tau = .5*dt/h;
+    varying vec2 pos;
 
-    void main(void) {
-        vec2 D = -tau*vec2(
-            texture2D(smpl, tPos).x + texture2D(smpl, vec2(tPos.x - h, tPos.y)).x,
-            texture2D(smpl, tPos).y + texture2D(smpl, vec2(tPos.x, tPos.y - h)).y
-        );
-        vec2 De = fract(D);
-        vec2 tPos1 = tPos + floor(D)*h;
-        vec3 newV = (
-            texture2D(smpl, tPos1).rgb * (1. - De.y) +
-            texture2D(smpl, vec2(tPos1.x, tPos1.y + h)).rgb * De.y
-        ) * (1. - De.x) +
-        (
-            texture2D(smpl, vec2(tPos1.x + h, tPos1.y)).rgb * (1. - De.y) +
-            texture2D(smpl, vec2(tPos1.x + h, tPos1.y + h)).rgb * De.y
-        ) * De.x;
-        gl_FragColor = vec4(newV, texture2D(smpl, tPos).a);
-    }
-</script>
-<script id="pressure-fs" type="x-shader/x-fragment">
-    precision highp float;
-    uniform sampler2D smpl;
-    varying vec2 tPos;
-    const float h = 1./1024.;
-
-    void main(void) {
-        vec4 t = texture2D(smpl, tPos);
-        t.a = (
-            texture2D(smpl, vec2(tPos.x - h, tPos.y)).a +
-            texture2D(smpl, vec2(tPos.x + h, tPos.y)).a +
-            texture2D(smpl, vec2(tPos.x, tPos.y - h)).a +
-            texture2D(smpl, vec2(tPos.x, tPos.y + h)).a -
-            (
-                t.x - texture2D(smpl, vec2(tPos.x - h, tPos.y)).x +
-                t.y - texture2D(smpl, vec2(tPos.x, tPos.y - h)).y
-            ) * h
-        ) *.25;
+    void main() {
+        vec4 t = texture2D(smpl, pos);
+        t.z += texture2D(smpl_input, pos).z;
         gl_FragColor = t;
     }
 </script>
@@ -78,47 +43,89 @@
     precision highp float;
     uniform sampler2D smpl;
     uniform float c;
-    varying vec2 tPos;
-    const float h = 1./1024.;
 
-    void main(void) {
-        vec4 t = texture2D(smpl, tPos);
-        t.x += c*(t.z + texture2D(smpl, vec2(tPos.x, tPos.y + h)).z);
+    varying vec2 pos;
+
+    const float h = 1./__DATA_SIZE.;
+
+    void main() {
+        vec4 t = texture2D(smpl, pos);
+        t.y += c*(t.z + texture2D(smpl, vec2(pos.x, pos.y + h)).z);
+        gl_FragColor = t;
+    }
+</script>
+<script id="velocity-fs" type="x-shader/x-fragment">
+    precision highp float;
+    uniform sampler2D smpl;
+
+    varying vec2 pos;
+
+    const float h = 1./__DATA_SIZE.;
+    const float dt = .001;
+    const float tau = .5*dt/h;
+
+    void main() {
+        vec2 D = -tau*vec2(
+            texture2D(smpl, pos).x + texture2D(smpl, vec2(pos.x - h, pos.y)).x,
+            texture2D(smpl, pos).y + texture2D(smpl, vec2(pos.x, pos.y - h)).y
+        );
+        vec2 De = fract(D);
+        vec2 pos_d = pos + floor(D)*h;
+        vec3 newV = (
+            texture2D(smpl, pos_d).rgb * (1. - De.y) +
+            texture2D(smpl, vec2(pos_d.x, pos_d.y + h)).rgb * De.y
+        ) * (1. - De.x) +
+        (
+            texture2D(smpl, vec2(pos_d.x + h, pos_d.y)).rgb * (1. - De.y) +
+            texture2D(smpl, vec2(pos_d.x + h, pos_d.y + h)).rgb * De.y
+        ) * De.x;
+        gl_FragColor = vec4(newV, texture2D(smpl, pos).a);
+    }
+</script>
+<script id="pressure-fs" type="x-shader/x-fragment">
+    precision highp float;
+    uniform sampler2D smpl;
+
+    varying vec2 pos;
+
+    const float h = 1./__DATA_SIZE.;
+
+    void main() {
+        vec4 t = texture2D(smpl, pos);
+        t.a = (
+            texture2D(smpl, vec2(pos.x - h, pos.y)).a +
+            texture2D(smpl, vec2(pos.x + h, pos.y)).a +
+            texture2D(smpl, vec2(pos.x, pos.y - h)).a +
+            texture2D(smpl, vec2(pos.x, pos.y + h)).a -
+            (
+                t.x - texture2D(smpl, vec2(pos.x - h, pos.y)).x +
+                t.y - texture2D(smpl, vec2(pos.x, pos.y - h)).y
+            ) * h
+        ) *.25;
         gl_FragColor = t;
     }
 </script>
 <script id="div-fs" type="x-shader/x-fragment">
     precision highp float;
     uniform sampler2D smpl;
-    varying vec2 tPos;
-    const float n = 1024.;
+
+    varying vec2 pos;
+
+    const float n = __DATA_SIZE.;
     const float h = 1./n;
 
-    void main(void) {
-        vec4 t = texture2D(smpl, tPos);
-        t.x -= (texture2D(smpl, vec2(tPos.x + h, tPos.y)).a - t.a)*n;
-        t.y -= (texture2D(smpl, vec2(tPos.x, tPos.y + h)).a - t.a)*n;
+    void main() {
+        vec4 t = texture2D(smpl, pos);
+        t.x -= (texture2D(smpl, vec2(pos.x + h, pos.y)).a - t.a)*n;
+        t.y -= (texture2D(smpl, vec2(pos.x, pos.y + h)).a - t.a)*n;
         gl_FragColor = t;
     }
 </script>
-<script id="Source-fs" type="x-shader/x-fragment">
-    precision highp float;
-    uniform sampler2D smpl;
-    uniform sampler2D smpl2;
-    varying vec2 tPos;
-    varying float S;
-
-    void main(void) {
-        vec4 t = texture2D(smpl, tPos);
-        t.b += texture2D(smpl2, tPos).b;
-        gl_FragColor = t;
-    }
-</script>
-
+<script type="text/javascript" src="script/render.js"></script>
 <script type="text/javascript" src="fluid.js"></script>
 </head>
 <body onload="onLoad('c')">
-  <canvas id="c" width="1024" height="1024"></canvas><br>
+  <canvas id="c" width="512" height="512"></canvas><br>
   It<input size="1" value="10" onchange="setIt( this.value )">
   &beta;<input size="2" value="10" onchange="setBu( this.value )">
   interval<input size="1" value="0" onchange="setDelay( this.value )"><br>

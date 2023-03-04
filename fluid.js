@@ -1,5 +1,4 @@
-/** @type{WebGL2RenderingContext} */
-let gl;
+/// <reference path="script/render.js"/>
 
 /** @type{WebGLProgram} */
 let PROG_SOURCE;
@@ -27,47 +26,12 @@ let FBO_0;
 /** @type{WebGLFramebuffer} */
 let FBO_1;
 
-const DATA_SIZE = 1024;
 let animation = "";
 let timer;
 let time;
 let it = 10;
 let interval = 0;
 let frames = 0;
-
-function getShader(id) {
-    let shaderScript = document.getElementById(id);
-    let str = "";
-    let k = shaderScript.firstChild;
-    while(k) {
-        if (k.nodeType == 3) {
-            str += k.textContent;
-        }
-        k = k.nextSibling;
-    }
-    let shader;
-    if ( shaderScript.type == "x-shader/x-fragment" ) {
-        shader = gl.createShader(gl.FRAGMENT_SHADER);
-    } else if ( shaderScript.type == "x-shader/x-vertex" ) {
-        shader = gl.createShader(gl.VERTEX_SHADER);
-    } else {
-        return null;
-    }
-    gl.shaderSource(shader, str);
-    gl.compileShader(shader);
-    if (gl.getShaderParameter(shader, gl.COMPILE_STATUS) == 0) {
-        alert(id + "\n" + gl.getShaderInfoLog(shader));
-    }
-    return shader;
-}
-
-function getProgram(vs_id, fs_id) {
-    let prg = gl.createProgram();
-    gl.attachShader(prg, getShader(vs_id));
-    gl.attachShader(prg, getShader(fs_id));
-    gl.linkProgram(prg);
-    return prg;
-}
 
 function createData(isInit=false) {
     let ret = [];
@@ -79,9 +43,9 @@ function createData(isInit=false) {
                 let T = 0;
                 if (x>-0.2 && x<0.2) {
                     if (y>-0.4 && y<-0.3) {
-                        T = .005;
+                        T = .01;
                     } else if (y>0.3 && y<0.4) {
-                        T = -.005;
+                        T = -.01;
                     }
                 }
                 ret.push(0, 0, T, 0);
@@ -110,21 +74,20 @@ function createData(isInit=false) {
 function onLoad(elm_id) {
     const err = "Your browser does not support ";
     {
-        let c = document.getElementById(elm_id);
         if (!window.WebGLRenderingContext) {
             alert(err + "WebGL.");
             return;
         }
-
+        let elm = document.getElementById(elm_id);
         try {
-            gl = c.getContext("experimental-webgl");
+            gl = elm.getContext("experimental-webgl");
             //gl = c.getContext("webgl2");
         } catch(e) {}
         if (!gl) {
             alert("Can't get WebGL");
             return;
         }
-
+        DATA_SIZE = elm.clientWidth;
         let ext;
         try {
             ext = gl.getExtension("OES_texture_float");
@@ -136,16 +99,17 @@ function onLoad(elm_id) {
     }
 
     {
-        PROG_SOURCE = getProgram("shader-vs", "Source-fs");
-        PROG_FORCE = getProgram("shader-vs", "force-fs");
-        PROG_VELO = getProgram("shader-vs", "velocity-fs");
-        PROG_PRES = getProgram("shader-vs", "pressure-fs");
-        PROG_DIV = getProgram("shader-vs", "div-fs");
-        PROG_SHOW = getProgram("shader-vs", "shader-fs-show");
+        let vs = create_shader("shader-vs");
+        PROG_SOURCE = create_program(vs, create_shader("source-fs"));
+        PROG_FORCE = create_program(vs, create_shader("force-fs"));
+        PROG_VELO = create_program(vs, create_shader("velocity-fs"));
+        PROG_PRES = create_program(vs, create_shader("pressure-fs"));
+        PROG_DIV = create_program(vs, create_shader("div-fs"));
+        PROG_SHOW = create_program(vs, create_shader("shader-fs-show"));
 
         gl.useProgram(PROG_SOURCE);
-        gl.uniform1i(gl.getUniformLocation(PROG_SOURCE, "smpl2"), 2);
-        
+        gl.uniform1i(gl.getUniformLocation(PROG_SOURCE, "smpl_input"), 2);
+
         gl.useProgram(PROG_FORCE);
         gl.uniform1f(gl.getUniformLocation(PROG_FORCE, "c"), .001*.5*10);
         gl.uniform1i(gl.getUniformLocation(PROG_FORCE, "smpl"), 1);
@@ -167,21 +131,10 @@ function onLoad(elm_id) {
         gl.vertexAttribPointer(aTexLoc, 2, gl.FLOAT, gl.FALSE, 16, 8);
 
         gl.useProgram(PROG_PRES);
-        UNILOC_SMPL = gl.getUniformLocation(PROG_PRES, "smpl");
+        UNILOC_SMPL = gl.getUniformLocation(PROG_PRES, "smpl", 0);
 
         gl.useProgram(PROG_DIV);
         gl.uniform1i(gl.getUniformLocation(PROG_DIV, "smpl"), 1);
-    }
-
-    {
-        let pixels = createData(true);
-        let texture2 = gl.createTexture();
-        gl.activeTexture(gl.TEXTURE2);
-        gl.bindTexture(gl.TEXTURE_2D, texture2);
-        gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, DATA_SIZE, DATA_SIZE, 0, gl.RGBA, gl.FLOAT, new Float32Array(pixels));
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
     }
 
     {
@@ -203,6 +156,17 @@ function onLoad(elm_id) {
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
 
+        pixels = createData(true);
+        let tex_2 = gl.createTexture();
+        gl.activeTexture(gl.TEXTURE2);
+        gl.bindTexture(gl.TEXTURE_2D, tex_2);
+        gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, DATA_SIZE, DATA_SIZE, 0, gl.RGBA, gl.FLOAT, new Float32Array(pixels));
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    }
+
+    {
         FBO_0 = gl.createFramebuffer();
         gl.bindFramebuffer(gl.FRAMEBUFFER, FBO_0);
         gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, TEX_0, 0);
