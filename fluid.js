@@ -111,14 +111,14 @@ function onLoad(elm_id) {
         gl.uniform1i(gl.getUniformLocation(PROG_SOURCE, "field_input"), 2);
 
         gl.useProgram(PROG_FORCE);
-        gl.uniform1f(gl.getUniformLocation(PROG_FORCE, "c"), .001*.5*10);
         gl.uniform1i(gl.getUniformLocation(PROG_FORCE, "field"), 1);
+        gl.uniform1f(gl.getUniformLocation(PROG_FORCE, "c"), .001*.5*10);
 
         gl.useProgram(PROG_VELO);
-        let aPosLoc = gl.getAttribLocation(PROG_VELO, "aPos");
-        let aTexLoc = gl.getAttribLocation(PROG_VELO, "aTexCoord");
-        gl.enableVertexAttribArray(aPosLoc);
-        gl.enableVertexAttribArray(aTexLoc);
+        let attLocPos = gl.getAttribLocation(PROG_VELO, "aPos");
+        let attLocTex = gl.getAttribLocation(PROG_VELO, "aTexCoord");
+        gl.enableVertexAttribArray(attLocPos);
+        gl.enableVertexAttribArray(attLocTex);
         let data = new Float32Array([
             -1,-1, 0,0,
             1,-1, 1,0,
@@ -127,8 +127,8 @@ function onLoad(elm_id) {
         ]);
         gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
         gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
-        gl.vertexAttribPointer(aPosLoc, 2, gl.FLOAT, gl.FALSE, 16, 0);
-        gl.vertexAttribPointer(aTexLoc, 2, gl.FLOAT, gl.FALSE, 16, 8);
+        gl.vertexAttribPointer(attLocPos, 2, gl.FLOAT, gl.FALSE, 16, 0);
+        gl.vertexAttribPointer(attLocTex, 2, gl.FLOAT, gl.FALSE, 16, 8);
 
         gl.useProgram(PROG_PRES);
         UNILOC_FIELD = gl.getUniformLocation(PROG_PRES, "field", 0);
@@ -213,9 +213,9 @@ function draw() {
     gl.bindFramebuffer(gl.FRAMEBUFFER, FBO_0);
     gl.useProgram(PROG_DIV);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
- 
-    gl.useProgram(PROG_SHOW);
+
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.useProgram(PROG_SHOW);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     frames++;
 }
