@@ -36,10 +36,10 @@ let frames = 0;
 function createData(isInit=false) {
     let ret = [];
     if (isInit) {
-        for(let py = 0; py<DATA_SIZE; py++) {
-            let y = py * 2 / DATA_SIZE - 1;
-            for(let px = 0; px<DATA_SIZE; px++) {
-                let x = px * 2 / DATA_SIZE - 1;
+        for(let py = 0; py<GRID_SIZE; py++) {
+            let y = py * 2 / GRID_SIZE - 1;
+            for(let px = 0; px<GRID_SIZE; px++) {
+                let x = px * 2 / GRID_SIZE - 1;
                 let T = 0;
                 if (x>-0.2 && x<0.2) {
                     if (y>-0.4 && y<-0.3) {
@@ -52,10 +52,10 @@ function createData(isInit=false) {
             }
         }
     } else {
-        for(let py = 0; py<DATA_SIZE; py++) {
-            let y = py * 2 / DATA_SIZE - 1;
-            for(let px = 0; px<DATA_SIZE; px++) {
-                let x = px * 2 / DATA_SIZE - 1;
+        for(let py = 0; py<GRID_SIZE; py++) {
+            let y = py * 2 / GRID_SIZE - 1;
+            for(let px = 0; px<GRID_SIZE; px++) {
+                let x = px * 2 / GRID_SIZE - 1;
                 let T = 0;
                 if (y>-0.1 && y<0.1) {
                     if (x>-0.3 && x<-0.05) {
@@ -87,7 +87,7 @@ function onLoad(elm_id) {
             alert("Can't get WebGL");
             return;
         }
-        DATA_SIZE = elm.clientWidth;
+        GRID_SIZE = elm.clientWidth;
         let ext;
         try {
             ext = gl.getExtension("OES_texture_float");
@@ -144,7 +144,7 @@ function onLoad(elm_id) {
         gl.activeTexture(gl.TEXTURE0);
         gl.bindTexture(gl.TEXTURE_2D, TEX_0);
         gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, DATA_SIZE, DATA_SIZE, 0, gl.RGBA, gl.FLOAT, new Float32Array(pixels));
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, GRID_SIZE, GRID_SIZE, 0, gl.RGBA, gl.FLOAT, new Float32Array(pixels));
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
 
@@ -152,7 +152,7 @@ function onLoad(elm_id) {
         gl.activeTexture(gl.TEXTURE1);
         gl.bindTexture(gl.TEXTURE_2D, TEX_1);
         gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, DATA_SIZE, DATA_SIZE, 0, gl.RGBA, gl.FLOAT, new Float32Array(pixels));
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, GRID_SIZE, GRID_SIZE, 0, gl.RGBA, gl.FLOAT, new Float32Array(pixels));
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
 
@@ -161,7 +161,7 @@ function onLoad(elm_id) {
         gl.activeTexture(gl.TEXTURE2);
         gl.bindTexture(gl.TEXTURE_2D, tex_2);
         gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, DATA_SIZE, DATA_SIZE, 0, gl.RGBA, gl.FLOAT, new Float32Array(pixels));
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, GRID_SIZE, GRID_SIZE, 0, gl.RGBA, gl.FLOAT, new Float32Array(pixels));
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
     }
@@ -226,9 +226,9 @@ function anim() {
     case "reset":
         let pixels = createData();
         gl.bindTexture(gl.TEXTURE_2D, TEX_0);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, DATA_SIZE, DATA_SIZE, 0, gl.RGBA, gl.FLOAT, new Float32Array(pixels));
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, GRID_SIZE, GRID_SIZE, 0, gl.RGBA, gl.FLOAT, new Float32Array(pixels));
         gl.bindTexture(gl.TEXTURE_2D, TEX_1);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, DATA_SIZE, DATA_SIZE, 0, gl.RGBA, gl.FLOAT, new Float32Array(pixels));
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, GRID_SIZE, GRID_SIZE, 0, gl.RGBA, gl.FLOAT, new Float32Array(pixels));
         animation = "animate";
     case "animate":
         if (interval == 0) {

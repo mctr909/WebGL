@@ -46,7 +46,7 @@
 
     varying vec2 pos;
 
-    const float h = 1./__DATA_SIZE.;
+    const float h = 1./__GRID_SIZE.;
 
     void main() {
         vec4 t = texture2D(field, pos);
@@ -60,7 +60,7 @@
 
     varying vec2 pos;
 
-    const float h = 1./__DATA_SIZE.;
+    const float h = 1./__GRID_SIZE.;
     const float dt = .001;
     const float tau = .5*dt/h;
 
@@ -88,7 +88,7 @@
 
     varying vec2 pos;
 
-    const float h = 1./__DATA_SIZE.;
+    const float h = 1./__GRID_SIZE.;
 
     void main() {
         vec4 t = texture2D(field, pos);
@@ -111,7 +111,7 @@
 
     varying vec2 pos;
 
-    const float n = __DATA_SIZE.;
+    const float n = __GRID_SIZE.;
     const float h = 1./n;
 
     void main() {

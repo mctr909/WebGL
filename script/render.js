@@ -1164,6 +1164,8 @@ class Render {
 /** @type{WebGL2RenderingContext} */
 let gl;
 /** @type{number} */
+let GRID_SIZE = 1;
+/** @type{number} */
 let DATA_SIZE = 1;
 
 /**
@@ -1211,7 +1213,9 @@ function create_shader(id) {
 	default:
 		return null;
 	}
-	let str = elm.text.replace("__DATA_SIZE", DATA_SIZE);
+	let str = elm.text
+		.replaceAll("__GRID_SIZE", GRID_SIZE)
+		.replaceAll("__DATA_SIZE", DATA_SIZE);
 	gl.shaderSource(shader, str);
 	gl.compileShader(shader);
 	if(gl.getShaderParameter(shader, gl.COMPILE_STATUS)){
