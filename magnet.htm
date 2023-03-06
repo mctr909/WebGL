@@ -14,7 +14,7 @@
     varying vec2 pos;
     const float GAMMA = 1.0/2.0;
     void main() {
-        float force = texture2D(field, pos).w;
+        float force = texture2D(field, pos).x;
         if(force > 0.) {
             force = ((GAMMA+1.0)*force)/(force+GAMMA);
             gl_FragColor = vec4(force, 0., 0., 1.);
@@ -61,6 +61,7 @@
     const float h = 1./__GRID_SIZE.;
     void main() {
         vec4 t = texture2D(field, pos);
+        t.x = t.w;
         gl_FragColor = t;
     }
 </script>
