@@ -14,7 +14,7 @@
     varying vec2 pos;
     const float GAMMA = 1.0/2.0;
     void main() {
-        float force = texture2D(field, pos).x;
+        float force = texture2D(field, pos).w;
         if(force > 0.) {
             force = ((GAMMA+1.0)*force)/(force+GAMMA);
             gl_FragColor = vec4(force, 0., 0., 1.);
@@ -39,7 +39,7 @@
     void main() {
         vec4 f = texture2D(field, pos);
         f.z = f.w;
-        f.w = 0.;
+        f.w = 0.0;
         for(int i=0; i<__DATA_SIZE; i++) {
             vec4 magnet = texture2D(field_input, vec2(float(i)*dh, 0.));
             vec2 r = rot * magnet.xy - pos.xy + ORIGIN;
@@ -60,9 +60,8 @@
     varying vec2 pos;
     const float h = 1./__GRID_SIZE.;
     void main() {
-        vec4 t = texture2D(field, pos);
-        t.x = t.w;
-        gl_FragColor = t;
+        vec4 t0 = texture2D(field, pos);
+        gl_FragColor = t0;
     }
 </script>
 <script type="text/javascript" src="script/render.js"></script>
@@ -76,6 +75,6 @@
     fps:<span size="1" id="framerate"></span><br>
     <button onclick="reset()">Reset</button>
     <input type="button" onclick="run()" value="Stop" size="1" id="runBtn"/><br>
-    <input type="range" min="2" max="10" value="2" id="r_scale"/>
+    <input type="range" min="2" max="20" value="2" id="r_scale"/>
 </body>
 </html>
