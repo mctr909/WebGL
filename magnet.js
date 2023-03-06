@@ -18,6 +18,8 @@ let UNILOC_R_SCALE;
 let TEX_0;
 /** @type{WebGLTexture} */
 let TEX_1;
+/** @type{WebGLTexture} */
+let TEX_2;
 
 /** @type{WebGLFramebuffer} */
 let FBO_0;
@@ -31,6 +33,8 @@ let it = 10;
 let interval = 0;
 let frames = 0;
 let r_scale = 1;
+/** @type{Array<number>} */
+let magnet = [];
 
 function createData() {
     let ret = [];
@@ -44,30 +48,46 @@ function createData() {
 
 function cleateMagnet() {
     const POLES = 8;
-    const INNER = 0.32;
-    const OUTER = 0.3;
+    const P = -1;
+    const RADIUS = 0.3;
     const DIV = POLES/256.0;
 
     let ret = [];
     DATA_SIZE = 0;
 
-    for(let i=0,j=0; i<POLES; i++,j+=4) {
-        for(let d=-1/3; d<1/3; d+=DIV) {
-            let a = i + d;
+    for(let p=0; p<POLES; p++) {
+        for(let d=0; d<1/4; d+=DIV) {
+            let a = p + d - 1/2;
+            let b = p + d + 1/4;
             let ac = Math.cos(2*Math.PI*a/POLES);
             let as = Math.sin(2*Math.PI*a/POLES);
-            let ix = ac*INNER;
-            let iy = as*INNER;
-            let ox = ac*OUTER;
-            let oy = as*OUTER;
-            if (i%2==0) {
-                ret.push(ix, iy, ac, as);
-                ret.push(ox, oy, ac, as);
+            let bc = Math.cos(2*Math.PI*b/POLES);
+            let bs = Math.sin(2*Math.PI*b/POLES);
+            let ax = ac*RADIUS;
+            let ay = as*RADIUS;
+            let bx = bc*RADIUS;
+            let by = bs*RADIUS;
+            if (p%2==0) {
+                ret.push(ax, ay, -P*as, P*ac);
+                ret.push(bx, by, P*bs, -P*bc);
             } else {
-                ret.push(ix, iy, -ac, -as);
-                ret.push(ox, oy, -ac, -as);
+                ret.push(ax, ay, P*as, -P*ac);
+                ret.push(bx, by, -P*bs, P*bc);
             }
             DATA_SIZE += 2;
+        }
+        for(let d=-1/4; d<1/4; d+=DIV) {
+            let a = p + d;
+            let c = Math.cos(2*Math.PI*a/POLES);
+            let s = Math.sin(2*Math.PI*a/POLES);
+            let x = c*RADIUS;
+            let y = s*RADIUS;
+            if (p%2==0) {
+                ret.push(x, y, c, s);
+            } else {
+                ret.push(x, y, -c, -s);
+            }
+            DATA_SIZE++;
         }
     }
     let radix2_len = Math.pow(2, parseInt(Math.log2(DATA_SIZE)+0.99));
@@ -75,7 +95,7 @@ function cleateMagnet() {
     for(let i=0; i<dummy_len; i++) {
         ret.push(0, 0, 0, 0);
     }
-    DATA_SIZE = radix2_len;
+    DATA_SIZE_RADIX2 = radix2_len;
     return ret;
 }
 
@@ -106,7 +126,7 @@ function onLoad(elm_id) {
         }
     }
 
-    let magnet = cleateMagnet();
+    magnet = cleateMagnet();
 
     {
         let vs = create_shader("shader-vs");
@@ -159,11 +179,11 @@ function onLoad(elm_id) {
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
 
-        let tex_2 = gl.createTexture();
+        TEX_2 = gl.createTexture();
         gl.activeTexture(gl.TEXTURE2);
-        gl.bindTexture(gl.TEXTURE_2D, tex_2);
+        gl.bindTexture(gl.TEXTURE_2D, TEX_2);
         gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, DATA_SIZE, 1, 0, gl.RGBA, gl.FLOAT, new Float32Array(magnet));
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, DATA_SIZE_RADIX2, 1, 0, gl.RGBA, gl.FLOAT, new Float32Array(magnet));
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
     }
@@ -227,6 +247,8 @@ function anim() {
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, GRID_SIZE, GRID_SIZE, 0, gl.RGBA, gl.FLOAT, new Float32Array(pixels));
         gl.bindTexture(gl.TEXTURE_2D, TEX_1);
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, GRID_SIZE, GRID_SIZE, 0, gl.RGBA, gl.FLOAT, new Float32Array(pixels));
+        gl.bindTexture(gl.TEXTURE_2D, TEX_2);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, GRID_SIZE, GRID_SIZE, 0, gl.RGBA, gl.FLOAT, new Float32Array(magnet));
         animation = "animate";
     case "animate":
         if (interval == 0) {
