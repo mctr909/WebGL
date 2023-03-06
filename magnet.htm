@@ -2,9 +2,7 @@
 <script id="shader-vs" type="x-shader/x-vertex">
     attribute vec2 aPos;
     attribute vec2 aTexCoord;
-
     varying vec2 pos;
-
     void main() {
         gl_Position = vec4(aPos, 0., 1.);
         pos = aTexCoord;
@@ -13,19 +11,17 @@
 <script id="shader-fs-show" type="x-shader/x-fragment">
     precision highp float;
     uniform sampler2D field;
-
     varying vec2 pos;
-    const float gamma = 1.0/4.0;
-
+    const float GAMMA = 1.0/2.0;
     void main() {
-        float T = texture2D(field, pos).w;
-        if(T > 0.) {
-            T = ((gamma+1.0)*T)/(T+gamma);
-            gl_FragColor = vec4(T, 0., 0., 1.);
+        float force = texture2D(field, pos).w;
+        if(force > 0.) {
+            force = ((GAMMA+1.0)*force)/(force+GAMMA);
+            gl_FragColor = vec4(force, 0., 0., 1.);
         } else {
-            T = -T;
-            T = ((gamma+1.0)*T)/(T+gamma);
-            gl_FragColor = vec4(0., 0., T, 1.);
+            force = -force;
+            force = ((GAMMA+1.0)*force)/(force+GAMMA);
+            gl_FragColor = vec4(0., 0., force, 1.);
         }
     }
 </script>
@@ -35,27 +31,23 @@
     uniform sampler2D field;
     uniform sampler2D field_input;
     uniform mat2 rot;
-
+    uniform float r_scale;
     varying vec2 pos;
-
     const float h = 1./__GRID_SIZE.;
     const float dh = 1./__DATA_SIZE.;
-    const float r_scale = __GRID_SIZE./4.0;
-    const vec2 O = vec2(0.5, 0.5);
-
+    const vec2 ORIGIN = vec2(0.5, 0.5);
     void main() {
         vec4 f = texture2D(field, pos);
         f.z = f.w;
         f.w = 0.;
-        float m_index = 0.;
         for(int i=0; i<__DATA_SIZE; i++) {
-            vec4 m = texture2D(field_input, vec2(m_index, 0.));
-            m_index += dh;
-            vec2 s = rot*m.xy - pos.xy + O;
-            float r = length(s);
-            r = max(r, h);
-            r *= r_scale;
-            f.w += m.w / (r*r);
+            vec4 magnet = texture2D(field_input, vec2(float(i)*dh, 0.));
+            vec2 r = rot * magnet.xy - pos.xy + ORIGIN;
+            vec2 mu = rot * magnet.zw;
+            float len = length(r);
+            len = max(len, h);
+            len *= r_scale;
+            f.w += dot(r, mu) / (len*len);
         }
         f.w = clamp(f.w, -1.0, 1.0);
         gl_FragColor = f;
@@ -65,11 +57,8 @@
     precision highp float;
     uniform sampler2D field;
     uniform float c;
-
     varying vec2 pos;
-
     const float h = 1./__GRID_SIZE.;
-
     void main() {
         vec4 t = texture2D(field, pos);
         gl_FragColor = t;
@@ -79,12 +68,13 @@
 <script type="text/javascript" src="magnet.js"></script>
 </head>
 <body onload="onLoad('c')">
-  <canvas id="c" width="512" height="512"></canvas><br>
-  It<input size="1" value="10" onchange="setIt( this.value )">
-  &beta;<input size="2" value="10" onchange="setBu( this.value )">
-  interval<input size="1" value="0" onchange="setDelay( this.value )"><br>
-  fps:<span size="1" id="framerate"></span><br>
-  <button onclick="reset()">Reset</button>
-  <input type="button" onclick="run()" value="Stop" size="1" id="runBtn">
+    <canvas id="c" width="256" height="256"></canvas><br>
+    It<input size="1" value="10" onchange="setIt( this.value )">
+    &beta;<input size="2" value="10" onchange="setBu( this.value )">
+    interval<input size="1" value="0" onchange="setDelay( this.value )"><br>
+    fps:<span size="1" id="framerate"></span><br>
+    <button onclick="reset()">Reset</button>
+    <input type="button" onclick="run()" value="Stop" size="1" id="runBtn"/><br>
+    <input type="range" min="2" max="10" value="2" id="r_scale"/>
 </body>
 </html>

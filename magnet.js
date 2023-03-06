@@ -9,6 +9,10 @@ let PROG_SHOW;
 
 /** @type{WebGLUniformLocation} */
 let UNILOC_FIELD;
+/** @type{WebGLUniformLocation} */
+let UNILOC_ROT;
+/** @type{WebGLUniformLocation} */
+let UNILOC_R_SCALE;
 
 /** @type{WebGLTexture} */
 let TEX_0;
@@ -26,6 +30,7 @@ let time;
 let it = 10;
 let interval = 0;
 let frames = 0;
+let r_scale = 1;
 
 function createData() {
     let ret = [];
@@ -41,23 +46,13 @@ function cleateMagnet() {
     const POLES = 8;
     const INNER = 0.32;
     const OUTER = 0.3;
-    const HALBACH = true;
     const DIV = POLES/256.0;
-
-    let P1, P2;
-    if(HALBACH) {
-        P1 = 1;
-        P2 = -1;
-    } else {
-        P1 = -1;
-        P2 = 1;
-    }
 
     let ret = [];
     DATA_SIZE = 0;
 
     for(let i=0,j=0; i<POLES; i++,j+=4) {
-        for(let d=-1/4; d<1/4; d+=DIV) {
+        for(let d=-1/3; d<1/3; d+=DIV) {
             let a = i + d;
             let ac = Math.cos(2*Math.PI*a/POLES);
             let as = Math.sin(2*Math.PI*a/POLES);
@@ -66,43 +61,13 @@ function cleateMagnet() {
             let ox = ac*OUTER;
             let oy = as*OUTER;
             if (i%2==0) {
-                ret.push(ix, iy, 0, -1);
-                ret.push(ox, oy, 0, 1);
+                ret.push(ix, iy, ac, as);
+                ret.push(ox, oy, ac, as);
             } else {
-                ret.push(ix, iy, 0, 1);
-                ret.push(ox, oy, 0, -1);
+                ret.push(ix, iy, -ac, -as);
+                ret.push(ox, oy, -ac, -as);
             }
             DATA_SIZE += 2;
-        }
-    }
-    for(let i=0,j=POLES*4; i<POLES; i++,j+=4) {
-        for(let d=-1/8; d<1/8; d+=DIV) {
-            let a = i + d + 3/8.0;
-            let b = i + d - 3/8.0;
-            let ac = Math.cos(2*Math.PI*a/POLES);
-            let as = Math.sin(2*Math.PI*a/POLES);
-            let bc = Math.cos(2*Math.PI*b/POLES);
-            let bs = Math.sin(2*Math.PI*b/POLES);
-            let aix = ac*INNER;
-            let aiy = as*INNER;
-            let aox = ac*OUTER;
-            let aoy = as*OUTER;
-            let bix = bc*INNER;
-            let biy = bs*INNER;
-            let box = bc*OUTER;
-            let boy = bs*OUTER;
-            if (i%2==0) {
-                ret.push(aix, aiy, 0, P1);
-                ret.push(aox, aoy, 0, 1);
-                ret.push(bix, biy, 0, P1);
-                ret.push(box, boy, 0, 1);
-            } else {
-                ret.push(aix, aiy, 0, P2);
-                ret.push(aox, aoy, 0, -1);
-                ret.push(bix, biy, 0, P2);
-                ret.push(box, boy, 0, -1);
-            }
-            DATA_SIZE += 4;
         }
     }
     let radix2_len = Math.pow(2, parseInt(Math.log2(DATA_SIZE)+0.99));
@@ -151,7 +116,10 @@ function onLoad(elm_id) {
 
         gl.useProgram(PROG_SOURCE);
         gl.uniform1i(gl.getUniformLocation(PROG_SOURCE, "field_input"), 2);
-        gl.uniformMatrix2fv(gl.getUniformLocation(PROG_SOURCE, "rot"), false, [1,0,0,1]);
+        UNILOC_ROT = gl.getUniformLocation(PROG_SOURCE, "rot");
+        UNILOC_R_SCALE = gl.getUniformLocation(PROG_SOURCE, "r_scale");
+        gl.uniformMatrix2fv(UNILOC_ROT, false, [1,0,0,1]);
+        gl.uniform1f(UNILOC_R_SCALE, GRID_SIZE/8);
 
         gl.useProgram(PROG_FORCE);
         gl.uniform1i(gl.getUniformLocation(PROG_FORCE, "field"), 1);
@@ -214,21 +182,31 @@ function onLoad(elm_id) {
         }
     }
 
+    r_scale = GRID_SIZE/document.getElementById("r_scale").value;
+    document.getElementById("r_scale").oninput = function() {
+        r_scale = GRID_SIZE/this.value;
+    };
+
     timer = setInterval(fr, 500);
     time = new Date().getTime();
     animation = "animate";
     anim();
 }
 
-let count = 0;
+let th = 2*Math.PI*33.33/3600;
+let rot_x = Math.cos(th);
+let rot_y = Math.sin(th);
+let c = 1.0;
+let s = 0.0;
 function draw() {
     gl.bindFramebuffer(gl.FRAMEBUFFER, FBO_1);
     gl.useProgram(PROG_SOURCE);
-    let th = 2*Math.PI * count;
-    let c = Math.cos(th);
-    let s = Math.sin(th);
-    gl.uniformMatrix2fv(gl.getUniformLocation(PROG_SOURCE, "rot"), false, [c,-s,s,c]);
+    gl.uniformMatrix2fv(UNILOC_ROT, false, [c,-s,s,c]);
+    gl.uniform1f(UNILOC_R_SCALE, r_scale);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    let tmp = c*rot_x - s*rot_y;
+    s = s*rot_x + c*rot_y;
+    c = tmp;
 
     gl.bindFramebuffer(gl.FRAMEBUFFER, FBO_0);
     gl.useProgram(PROG_FORCE);
@@ -238,10 +216,6 @@ function draw() {
     gl.useProgram(PROG_SHOW);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     frames++;
-    count += 33.33/3600;
-    if (1 <= count) {
-        count -= 1;
-    }
 }
 
 function anim() {
