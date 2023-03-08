@@ -13,11 +13,19 @@ let UNILOC_FIELD;
 let UNILOC_ROT;
 /** @type{WebGLUniformLocation} */
 let UNILOC_R_SCALE;
+/** @type{WebGLUniformLocation} */
+let UNILOC_B_SCALE;
+/** @type{WebGLUniformLocation} */
+let UNILOC_ROT_F;
+/** @type{WebGLUniformLocation} */
+let UNILOC_B_SCALE_F;
 
 /** @type{WebGLTexture} */
 let TEX_0;
 /** @type{WebGLTexture} */
 let TEX_1;
+/** @type{WebGLTexture} */
+let TEX_2;
 
 /** @type{WebGLFramebuffer} */
 let FBO_0;
@@ -31,6 +39,11 @@ let it = 10;
 let interval = 0;
 let frames = 0;
 let r_scale = 1;
+let b_scale = 2;
+let rot_re = 1.0;
+let rot_im = 0.0;
+/** @type{Array<number>} */
+let magnet = [];
 
 function createData() {
     let ret = [];
@@ -43,55 +56,53 @@ function createData() {
 }
 
 function cleateMagnet() {
+    const HALBACH = true;
     const POLES = 8;
-    const P = -1;
-    const RADIUS = 0.3;
-    const DIV = POLES/256.0;
+    const RADIUS = 0.35;
+    const OUTER = RADIUS + 2/POLES*RADIUS/(Math.PI);
+    const INNER = RADIUS - 2/POLES*RADIUS/(Math.PI);
 
     let ret = [];
     DATA_SIZE = 0;
 
     for(let p=0; p<POLES; p++) {
-        for(let d=0; d<1/4; d+=DIV) {
-            let a = p + d - 1/2;
-            let b = p + d + 1/4;
-            let ac = Math.cos(2*Math.PI*a/POLES);
-            let as = Math.sin(2*Math.PI*a/POLES);
-            let bc = Math.cos(2*Math.PI*b/POLES);
-            let bs = Math.sin(2*Math.PI*b/POLES);
-            let ax = ac*RADIUS;
-            let ay = as*RADIUS;
-            let bx = bc*RADIUS;
-            let by = bs*RADIUS;
-            if (p%2==0) {
-                ret.push(ax, ay, -P*as, P*ac);
-                ret.push(bx, by, P*bs, -P*bc);
-            } else {
-                ret.push(ax, ay, P*as, -P*ac);
-                ret.push(bx, by, -P*bs, P*bc);
-            }
-            DATA_SIZE += 2;
-        }
-        for(let d=-1/4; d<1/4; d+=DIV) {
+        for(let d=-1/2; d<=1/2; d+=1/32) {
             let a = p + d;
             let c = Math.cos(2*Math.PI*a/POLES);
             let s = Math.sin(2*Math.PI*a/POLES);
-            let x = c*RADIUS;
-            let y = s*RADIUS;
-            if (p%2==0) {
-                ret.push(x, y, c, s);
+            let ox = c*OUTER;
+            let oy = s*OUTER;
+            let ix = c*INNER;
+            let iy = s*INNER;
+            let op, ip;
+            if(HALBACH && (-1/2 <= d && d < -1/4 || 1/4 < d && d <= 1/2)) {
+                op = -1;
             } else {
-                ret.push(x, y, -c, -s);
+                op = 1;
             }
-            DATA_SIZE++;
+            if (p%2==0) {
+                op *= -1;
+                ip = 1;
+            } else {
+                ip = -1;
+            }
+            if (HALBACH && (d<-1/4 || 1/4<d)) {
+                ret.push(ox, oy, 0.0, op);
+                ret.push(ix, iy, 0.0, op);
+                DATA_SIZE += 2;
+            } else {
+                ret.push(ox, oy, 0.0, op);
+                ret.push(ix, iy, 0.0, ip);
+                DATA_SIZE += 2;
+            }
         }
     }
-    let radix2_len = Math.pow(2, parseInt(Math.log2(DATA_SIZE)+0.99));
-    let dummy_len = radix2_len - DATA_SIZE;
+
+    DATA_SIZE_RADIX2 = Math.pow(2, parseInt(Math.log2(DATA_SIZE)+0.99));
+    let dummy_len = DATA_SIZE_RADIX2 - DATA_SIZE;
     for(let i=0; i<dummy_len; i++) {
         ret.push(0, 0, 0, 0);
     }
-    DATA_SIZE = radix2_len;
     return ret;
 }
 
@@ -105,7 +116,6 @@ function onLoad(elm_id) {
         let elm = document.getElementById(elm_id);
         try {
             gl = elm.getContext("experimental-webgl");
-            //gl = c.getContext("webgl2");
         } catch(e) {}
         if (!gl) {
             alert("Can't get WebGL");
@@ -122,7 +132,7 @@ function onLoad(elm_id) {
         }
     }
 
-    let magnet = cleateMagnet();
+    magnet = cleateMagnet();
 
     {
         let vs = create_shader("shader-vs");
@@ -134,12 +144,15 @@ function onLoad(elm_id) {
         gl.uniform1i(gl.getUniformLocation(PROG_SOURCE, "field_input"), 2);
         UNILOC_ROT = gl.getUniformLocation(PROG_SOURCE, "rot");
         UNILOC_R_SCALE = gl.getUniformLocation(PROG_SOURCE, "r_scale");
+        UNILOC_B_SCALE = gl.getUniformLocation(PROG_SOURCE, "b_scale");
         gl.uniformMatrix2fv(UNILOC_ROT, false, [1,0,0,1]);
         gl.uniform1f(UNILOC_R_SCALE, GRID_SIZE/8);
 
         gl.useProgram(PROG_FORCE);
         gl.uniform1i(gl.getUniformLocation(PROG_FORCE, "field"), 1);
-        gl.uniform1f(gl.getUniformLocation(PROG_FORCE, "c"), .001*.5*10);
+        gl.uniform1i(gl.getUniformLocation(PROG_FORCE, "field_input"), 2);
+        UNILOC_ROT_F = gl.getUniformLocation(PROG_FORCE, "rot");
+        UNILOC_B_SCALE_F = gl.getUniformLocation(PROG_FORCE, "b_scale");
         let attLocPos = gl.getAttribLocation(PROG_FORCE, "aPos");
         let attLocTex = gl.getAttribLocation(PROG_FORCE, "aTexCoord");
         gl.enableVertexAttribArray(attLocPos);
@@ -175,11 +188,11 @@ function onLoad(elm_id) {
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
 
-        let tex_2 = gl.createTexture();
+        TEX_2 = gl.createTexture();
         gl.activeTexture(gl.TEXTURE2);
-        gl.bindTexture(gl.TEXTURE_2D, tex_2);
+        gl.bindTexture(gl.TEXTURE_2D, TEX_2);
         gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, DATA_SIZE, 1, 0, gl.RGBA, gl.FLOAT, new Float32Array(magnet));
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, DATA_SIZE_RADIX2, 1, 0, gl.RGBA, gl.FLOAT, new Float32Array(magnet));
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
     }
@@ -201,6 +214,14 @@ function onLoad(elm_id) {
     r_scale = GRID_SIZE/document.getElementById("r_scale").value;
     document.getElementById("r_scale").oninput = function() {
         r_scale = GRID_SIZE/this.value;
+        document.getElementById("lblR").innerHTML = "1/" + this.value;
+    };
+    document.getElementById("rpm").oninput = function() {
+        let rpm = this.value * 0.1;
+        let th = 2*Math.PI*rpm/3600;
+        rot_re = Math.cos(th);
+        rot_im = Math.sin(th);
+        document.getElementById("lblRpm").innerHTML = (rpm + "").substring(0, 4);
     };
 
     timer = setInterval(fr, 500);
@@ -209,9 +230,6 @@ function onLoad(elm_id) {
     anim();
 }
 
-let th = 2*Math.PI*33.33/3600;
-let rot_x = Math.cos(th);
-let rot_y = Math.sin(th);
 let c = 1.0;
 let s = 0.0;
 function draw() {
@@ -219,19 +237,23 @@ function draw() {
     gl.useProgram(PROG_SOURCE);
     gl.uniformMatrix2fv(UNILOC_ROT, false, [c,-s,s,c]);
     gl.uniform1f(UNILOC_R_SCALE, r_scale);
+    gl.uniform1f(UNILOC_B_SCALE, b_scale);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-    let tmp = c*rot_x - s*rot_y;
-    s = s*rot_x + c*rot_y;
-    c = tmp;
 
     gl.bindFramebuffer(gl.FRAMEBUFFER, FBO_0);
     gl.useProgram(PROG_FORCE);
+    gl.uniformMatrix2fv(UNILOC_ROT_F, false, [c,-s,s,c]);
+    gl.uniform1f(UNILOC_B_SCALE_F, b_scale);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     gl.useProgram(PROG_SHOW);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
     frames++;
+    let temp = c*rot_re - s*rot_im;
+    s = c*rot_im + s*rot_re;
+    c = temp;
 }
 
 function anim() {
@@ -243,6 +265,8 @@ function anim() {
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, GRID_SIZE, GRID_SIZE, 0, gl.RGBA, gl.FLOAT, new Float32Array(pixels));
         gl.bindTexture(gl.TEXTURE_2D, TEX_1);
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, GRID_SIZE, GRID_SIZE, 0, gl.RGBA, gl.FLOAT, new Float32Array(pixels));
+        gl.bindTexture(gl.TEXTURE_2D, TEX_2);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, GRID_SIZE, GRID_SIZE, 0, gl.RGBA, gl.FLOAT, new Float32Array(magnet));
         animation = "animate";
     case "animate":
         if (interval == 0) {
@@ -254,15 +278,6 @@ function anim() {
     case "stop":
         break;
     }
-}
-
-/**
- * @param {*} c dt*b/2
- */
-function setBu(c) {
-    var bu = c.valueOf();
-    gl.useProgram(PROG_FORCE); 
-    gl.uniform1f(gl.getUniformLocation(PROG_FORCE, "c"), .001*.5*bu);
 }
 
 function run(v) {
@@ -293,7 +308,4 @@ function fr() {
 }
 function setDelay(val) {
     interval = parseInt(val);
-}
-function setIt(val) {
-    it = parseInt(val);
 }

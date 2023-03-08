@@ -1167,6 +1167,8 @@ let gl;
 let GRID_SIZE = 1;
 /** @type{number} */
 let DATA_SIZE = 1;
+/** @type{number} */
+let DATA_SIZE_RADIX2 = 1;
 
 /**
  * @param {Array<number>} data
@@ -1214,8 +1216,9 @@ function create_shader(id) {
 		return null;
 	}
 	let str = elm.text
-		.replaceAll("__GRID_SIZE", GRID_SIZE)
-		.replaceAll("__DATA_SIZE", DATA_SIZE);
+		.replaceAll("__GRID_SIZE__", GRID_SIZE)
+		.replaceAll("__DATA_SIZE__", DATA_SIZE)
+		.replaceAll("__DATA_SIZE_RADIX2__", DATA_SIZE_RADIX2);
 	gl.shaderSource(shader, str);
 	gl.compileShader(shader);
 	if(gl.getShaderParameter(shader, gl.COMPILE_STATUS)){
