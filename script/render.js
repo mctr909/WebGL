@@ -1199,6 +1199,7 @@ function create_vbo_feedback(data) {
  * @returns {WebGLShader}
  */
 function create_shader(id) {
+	/** @type{HTMLScriptElement} */
 	let elm = document.getElementById(id);
 	if (!elm) {
 		return null;
